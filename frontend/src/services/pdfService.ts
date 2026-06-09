@@ -26,6 +26,11 @@ export async function generatePrescriptionPDF(
 
   const destFile = new File(prescriptionsDir, fileName);
   const sourceFile = new File(uri);
+  // Delete existing file first to avoid FileAlreadyExistsException
+  // (same patient + same day = same filename)
+  if (destFile.exists) {
+    destFile.delete();
+  }
   sourceFile.move(destFile);
   return destFile.uri;
 }
@@ -121,8 +126,7 @@ function buildPrescriptionHTML(
     </div>
   </div>
 
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-    <span class="rx-symbol">Rx</span>
+  <div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:8px;">
     <span style="font-size:12px;color:#64748B;">Date: <strong style="color:#0F172A;">${dateStr}</strong> | ID: <strong style="color:#0077B6;">${rx.id}</strong></span>
   </div>
 

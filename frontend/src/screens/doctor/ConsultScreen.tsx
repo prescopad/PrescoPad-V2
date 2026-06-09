@@ -64,10 +64,12 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
   // Live patient data for real-time updates
   const [patient, setPatient] = useState(initialPatient);
 
-  // Reset draft when doctor leaves Consult via back button (not forward to Preview)
+  // Reset draft only when navigating back (not forward to PrescriptionPreview)
   useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', () => {
-      resetDraft();
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (e.data.action.type === 'GO_BACK') {
+        resetDraft();
+      }
     });
     return unsubscribe;
   }, [navigation, resetDraft]);
@@ -228,6 +230,14 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      {/* Custom header replaces native RN header to avoid double-bar on Android */}
+      <View style={styles.navHeader}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navBackBtn}>
+          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+        </TouchableOpacity>
+        <Text style={styles.navHeaderTitle}>{t('nav.consultation')}</Text>
+        <View style={styles.navHeaderSpacer} />
+      </View>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -595,6 +605,28 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  navHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.md,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  navBackBtn: {
+    padding: SPACING.xs,
+  },
+  navHeaderTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  navHeaderSpacer: {
+    width: 32,
   },
   container: {
     flex: 1,

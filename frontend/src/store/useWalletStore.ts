@@ -59,13 +59,9 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
     }
   },
 
-  refundForPrescription: async (prescriptionId) => {
+  refundForPrescription: async (_prescriptionId) => {
     try {
-      // Backend refund endpoint not exposed publicly — instead we reload the
-      // server-of-truth balance. The backend itself refunds on finalize race.
       await get().loadBalance();
-      // Surface a soft notice so the UI can toast.
-      set({ lastError: `Refund processed for prescription ${prescriptionId}` });
     } catch {
       // best-effort
     }

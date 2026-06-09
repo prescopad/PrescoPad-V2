@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from app.models.wallet import RechargeRequest, DeductRequest, AutoRefillRequest
+from app.models.wallet import RechargeRequest, DeductRequest, AutoRefillRequest, RecordPaymentRequest
 from app.middleware.auth import get_current_user, require_doctor, TokenData
 import app.services.wallet_service as wallet_service
 
@@ -58,6 +58,27 @@ async def get_transactions(request: Request):
     try:
         transactions = await wallet_service.get_transactions(user.user_id)
         return _ok({"transactions": transactions})
+    except Exception as e:
+        return _err(str(e), 500)
+
+
+@router.post("/record-payment")
+async def record_payment(request: Request, body: RecordPaymentRequest):
+    user: TokenData = await require_doctor(request)
+    if not user.clinic_id:
+        return _err("No clinic associated", 400)
+    try:
+        payment = await wallet_service.record_consultation_payment(
+            user.user_id,
+            user.clinic_id,
+            body.get_prescription_id(),
+            body.amount,
+            body.method,
+            body.notes,
+        )
+        return _ok({"payment": payment, "message": "Payment recorded"})
+    except ValueError as e:
+        return _err(str(e), 400)
     except Exception as e:
         return _err(str(e), 500)
 

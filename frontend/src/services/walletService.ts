@@ -35,6 +35,18 @@ export async function deductWallet(
   };
 }
 
+function normalizeTransaction(t: Record<string, unknown>): Transaction {
+  return {
+    id: (t.id ?? t._id ?? '') as string,
+    walletId: (t.wallet_id ?? t.walletId ?? '') as string,
+    type: (t.type ?? '') as Transaction['type'],
+    amount: (t.amount ?? 0) as number,
+    description: (t.description ?? '') as string,
+    referenceId: (t.reference_id ?? t.referenceId ?? '') as string,
+    createdAt: (t.created_at ?? t.createdAt ?? '') as string,
+  };
+}
+
 export async function fetchTransactions(
   limit = 50,
   offset = 0
@@ -42,7 +54,16 @@ export async function fetchTransactions(
   const response = await api.get('/wallet/transactions', {
     params: { limit, offset },
   });
-  return response.data.transactions ?? [];
+  const raw: Record<string, unknown>[] = response.data.transactions ?? [];
+  return raw.map(normalizeTransaction);
+}
+
+export async function recordConsultationPayment(
+  prescriptionId: string,
+  amount: number,
+  method: 'cash' | 'online',
+): Promise<void> {
+  await api.post('/wallet/record-payment', { prescriptionId, amount, method });
 }
 
 export async function updateAutoRefill(

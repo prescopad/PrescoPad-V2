@@ -79,7 +79,11 @@ export default function PrescriptionActions({ prescription, show, layout = 'row'
     setBusy('download');
     try {
       const path = await ensurePdf();
-      const friendly = `${prescription.id}_${(prescription.patientName || 'patient').replace(/\s+/g, '_')}`;
+      const visitDate = new Date(prescription.createdAt)
+        .toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        .replace(/\//g, '-');
+      const safeName = (prescription.patientName || 'Patient').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
+      const friendly = `${visitDate}_${safeName}`;
       const exported = await exportPDFCopy(path, friendly);
       // Surface to the user — also opens the share sheet so they can save to Files / Drive.
       await shareViaPDF(exported);

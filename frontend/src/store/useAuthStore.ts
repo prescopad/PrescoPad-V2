@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import SecureStore from '../utils/secureStore';
 import { User, UserRole, AuthState } from '../types/auth.types';
+import { useQueueStore } from './useQueueStore';
 
 interface AuthStore extends AuthState {
   setUser: (user: User, accessToken: string, refreshToken: string) => Promise<void>;
@@ -32,6 +33,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   logout: async () => {
+    useQueueStore.getState().stopPolling();
     await Promise.all([
       SecureStore.deleteItemAsync('accessToken'),
       SecureStore.deleteItemAsync('refreshToken'),

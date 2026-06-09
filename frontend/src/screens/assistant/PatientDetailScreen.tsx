@@ -240,6 +240,7 @@ export default function PatientDetailScreen(): React.JSX.Element {
                 color={COLORS.textLight}
               />
               <Text style={styles.emptyRxText}>No prescriptions yet</Text>
+              <Text style={styles.emptyRxHint}>Add the patient to the queue so the doctor can start a consultation</Text>
             </View>
           ) : (
             prescriptions.map((rx) => (
@@ -536,6 +537,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textMuted,
     marginTop: SPACING.sm,
+    fontWeight: '600',
+  },
+  emptyRxHint: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    marginTop: SPACING.xs,
+    textAlign: 'center',
+    paddingHorizontal: SPACING.xl,
+    lineHeight: 18,
   },
 
   /* Prescription Card */

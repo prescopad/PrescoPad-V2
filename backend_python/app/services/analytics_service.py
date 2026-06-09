@@ -107,6 +107,18 @@ async def get_analytics(clinic_id: str, period: str = "today") -> dict:
             elif row["_id"] == "credit":
                 total_credit = row["total"]
 
+    # Consultation payments (cash/online fees collected from patients)
+    consultation_income = 0.0
+    cp_pipeline = [
+        {"$match": {
+            "clinic_id": clinic_id,
+            "created_at": {"$gte": start, "$lte": end},
+        }},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
+    ]
+    async for row in db.consultation_payments.aggregate(cp_pipeline):
+        consultation_income = row.get("total", 0.0) or 0.0
+
     # Popular medicines
     med_pipeline = [
         {"$match": {
@@ -150,7 +162,8 @@ async def get_analytics(clinic_id: str, period: str = "today") -> dict:
         "earnings": {
             "totalDebit": total_debit,
             "totalCredit": total_credit,
-            "netEarnings": total_credit - total_debit,
+            "consultationIncome": consultation_income,
+            "netEarnings": total_credit - total_debit + consultation_income,
             "prescriptionRevenue": rx_revenue,
         },
         "patients": {

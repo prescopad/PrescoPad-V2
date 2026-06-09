@@ -45,7 +45,7 @@ function DoctorQueueStack(): React.JSX.Element {
   return (
     <QueueStack.Navigator screenOptions={{ headerShown: false }}>
       <QueueStack.Screen name="DoctorDashboard" component={DoctorDashboard} />
-      <QueueStack.Screen name="Consult" component={ConsultScreen} options={{ headerShown: true, title: t('nav.consultation') }} />
+      <QueueStack.Screen name="Consult" component={ConsultScreen} options={{ headerShown: false }} />
       <QueueStack.Screen name="MedicinePicker" component={MedicinePickerScreen} options={{ headerShown: true, title: t('nav.addMedicine') }} />
       <QueueStack.Screen name="LabTestPicker" component={LabTestPickerScreen} options={{ headerShown: true, title: t('nav.addLabTest') }} />
       <QueueStack.Screen name="PrescriptionPreview" component={PrescriptionPreviewScreen} options={{ headerShown: false }} />

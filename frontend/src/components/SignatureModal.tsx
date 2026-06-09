@@ -7,6 +7,7 @@ import {
   StyleSheet,
   PanResponder,
   GestureResponderEvent,
+  Alert,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
@@ -63,7 +64,7 @@ export default function SignatureModal({
     // Combine all drawn segments into a single SVG path string
     const combinedPath = [...paths, currentPath].filter(Boolean).join(' ');
     if (!combinedPath.trim()) {
-      alert('Please draw your signature before confirming.');
+      Alert.alert('', 'Please draw your signature before confirming.');
       return;
     }
     onConfirm(combinedPath, saveToProfile);

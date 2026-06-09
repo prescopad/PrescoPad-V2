@@ -26,6 +26,7 @@ import { useWalletStore } from '../../store/useWalletStore';
 import { useClinicStore } from '../../store/useClinicStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { generatePrescriptionPDF } from '../../services/pdfService';
+import { recordConsultationPayment } from '../../services/walletService';
 import PrescriptionActions from '../../components/PrescriptionActions';
 import SignatureModal from '../../components/SignatureModal';
 import { hashPDF } from '../../services/cryptoService';
@@ -56,6 +57,7 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [cashAmount, setCashAmount] = useState('');
+  const [onlineAmount, setOnlineAmount] = useState('');
   // Issued prescription stored to pass to success screen after payment
   const issuedRxRef = useRef<typeof rx>(null);
 
@@ -132,6 +134,7 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
 
       // Step 3: Now ask for payment method
       setCashAmount('');
+      setOnlineAmount('');
       setSelectedPayment(null);
       setShowPaymentModal(true);
     } catch (error: unknown) {
@@ -144,8 +147,13 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
 
   // Step 3a: Cash selected — doctor enters amount received, then proceed
   const handleCashDone = () => {
+    const issued = issuedRxRef.current ?? rx!;
+    const amount = parseFloat(cashAmount);
+    if (amount > 0) {
+      recordConsultationPayment(issued.id, amount, 'cash').catch(() => {});
+    }
     setShowPaymentModal(false);
-    navigation.replace('RxSuccess', { prescription: issuedRxRef.current ?? rx! });
+    navigation.replace('RxSuccess', { prescription: issued });
   };
 
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod | null>(null);
@@ -161,8 +169,13 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
   };
 
   const handleQRDone = () => {
+    const issued = issuedRxRef.current ?? rx!;
+    const amount = parseFloat(onlineAmount);
+    if (amount > 0) {
+      recordConsultationPayment(issued.id, amount, 'online').catch(() => {});
+    }
     setShowQRModal(false);
-    navigation.replace('RxSuccess', { prescription: issuedRxRef.current ?? rx! });
+    navigation.replace('RxSuccess', { prescription: issued });
   };
 
   if (!rx) {
@@ -401,8 +414,21 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Record Payment</Text>
               <TouchableOpacity onPress={() => {
-                setShowPaymentModal(false);
-                navigation.replace('RxSuccess', { prescription: issuedRxRef.current ?? rx! });
+                Alert.alert(
+                  'Skip Payment?',
+                  'No payment will be recorded for this consultation.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Skip',
+                      style: 'destructive',
+                      onPress: () => {
+                        setShowPaymentModal(false);
+                        navigation.replace('RxSuccess', { prescription: issuedRxRef.current ?? rx! });
+                      },
+                    },
+                  ]
+                );
               }}>
                 <Ionicons name="close" size={24} color={COLORS.text} />
               </TouchableOpacity>
@@ -505,6 +531,18 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
             <Text style={styles.qrInstructions}>
               Ask the patient to scan this QR code and complete payment
             </Text>
+
+            <View style={styles.cashAmountContainer}>
+              <Text style={styles.cashAmountLabel}>Amount Received (₹)</Text>
+              <TextInput
+                style={styles.cashAmountInput}
+                placeholder="Enter amount e.g. 500"
+                placeholderTextColor={COLORS.textLight}
+                value={onlineAmount}
+                onChangeText={setOnlineAmount}
+                keyboardType="numeric"
+              />
+            </View>
 
             <TouchableOpacity
               style={styles.qrDoneButton}

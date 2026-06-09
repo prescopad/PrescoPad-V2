@@ -159,6 +159,41 @@ async def get_transactions(user_id: str) -> list:
     return [serialize_doc(t) async for t in cursor]
 
 
+async def record_consultation_payment(
+    user_id: str,
+    clinic_id: str,
+    prescription_id: Optional[str],
+    amount: float,
+    method: str,
+    notes: Optional[str] = None,
+) -> dict:
+    """Store a consultation fee received from the patient (cash/online).
+
+    This does NOT touch the wallet balance — it only records income so that
+    analytics can report real consultation earnings.
+    """
+    if amount <= 0:
+        raise ValueError("Payment amount must be positive")
+
+    db = get_db()
+    now = datetime.now(timezone.utc)
+
+    doc = {
+        "user_id": user_id,
+        "clinic_id": clinic_id,
+        "prescription_id": prescription_id,
+        "amount": amount,
+        "method": method,
+        "notes": notes,
+        "created_at": now,
+    }
+    result = await db.consultation_payments.insert_one(doc)
+    doc["id"] = str(result.inserted_id)
+    doc.pop("_id", None)
+    doc["created_at"] = now.isoformat()
+    return doc
+
+
 async def update_auto_refill(
     user_id: str,
     auto_refill: bool,

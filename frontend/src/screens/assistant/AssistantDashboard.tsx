@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
@@ -398,7 +398,15 @@ export default function AssistantDashboard(): React.JSX.Element {
               style={styles.consultOption}
               onPress={() => {
                 setShowConsultTypeModal(false);
-                navigation.getParent()?.navigate('AddPatient');
+                const parent = navigation.getParent();
+                if (parent) {
+                  parent.dispatch(
+                    CommonActions.navigate({
+                      name: 'AddPatient',
+                      params: { screen: 'AddPatientForm' },
+                    })
+                  );
+                }
               }}
               activeOpacity={0.7}
             >

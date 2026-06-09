@@ -21,6 +21,18 @@ class DeductRequest(BaseModel):
         return self.reference_id or self.referenceId
 
 
+class RecordPaymentRequest(BaseModel):
+    """Record a consultation payment received from the patient (cash or online)."""
+    prescription_id: Optional[str] = None
+    prescriptionId: Optional[str] = None
+    amount: float = Field(..., gt=0)
+    method: str = Field(..., description="'cash' or 'online'")
+    notes: Optional[str] = None
+
+    def get_prescription_id(self) -> Optional[str]:
+        return self.prescription_id or self.prescriptionId
+
+
 class AutoRefillRequest(BaseModel):
     # Accept both camelCase and snake_case
     auto_refill: Optional[bool] = None

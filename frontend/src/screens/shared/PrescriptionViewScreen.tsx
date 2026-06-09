@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar, ActivityIndicator,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar, ActivityIndicator, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -29,8 +29,8 @@ export default function PrescriptionViewScreen(): React.JSX.Element {
     try {
       const data = await getPrescriptionById(prescriptionId);
       setRx(data);
-    } catch {
-      // silent
+    } catch (e) {
+      Alert.alert('Error', 'Failed to load prescription.');
     } finally {
       setIsLoading(false);
     }
@@ -43,12 +43,25 @@ export default function PrescriptionViewScreen(): React.JSX.Element {
     });
   };
 
-  if (isLoading || !rx) {
+  if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Loading prescription...</Text>
+      </View>
+    );
+  }
+
+  if (!rx) {
+    return (
+      <View style={styles.loadingContainer}>
+        <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
+        <Ionicons name="document-text-outline" size={56} color={COLORS.textLight} />
+        <Text style={styles.loadingText}>Prescription not found</Text>
+        <TouchableOpacity style={{ marginTop: 16, padding: 12 }} onPress={() => navigation.goBack()}>
+          <Text style={{ color: COLORS.primary, fontWeight: '700' }}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }

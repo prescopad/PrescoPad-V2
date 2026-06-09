@@ -15,11 +15,12 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation, route }: Props): React.JSX.Element {
   const { t } = useTranslation();
-  const role = route.params.role;
+  const [activeRole, setActiveRole] = useState<UserRole>(route.params.role as UserRole);
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const isDoctor = role === 'doctor';
+  const isDoctor = activeRole === 'doctor';
+  const role = activeRole;
   const title = isDoctor ? t('auth.doctorLogin') : t('auth.assistantLogin');
   const icon: keyof typeof Ionicons.glyphMap = isDoctor ? 'medkit' : 'people';
 
@@ -59,6 +60,26 @@ export default function LoginScreen({ navigation, route }: Props): React.JSX.Ele
 
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>{t('auth.enterPhoneSubtitle')}</Text>
+
+        {/* Role toggle — lets user switch without going back to landing */}
+        <View style={styles.roleToggle}>
+          <TouchableOpacity
+            style={[styles.roleToggleBtn, isDoctor && styles.roleToggleBtnActive]}
+            onPress={() => setActiveRole('doctor' as UserRole)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="medkit-outline" size={16} color={isDoctor ? COLORS.white : COLORS.textMuted} />
+            <Text style={[styles.roleToggleBtnText, isDoctor && styles.roleToggleBtnTextActive]}>Doctor</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.roleToggleBtn, !isDoctor && styles.roleToggleBtnActiveGreen]}
+            onPress={() => setActiveRole('assistant' as UserRole)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="people-outline" size={16} color={!isDoctor ? COLORS.white : COLORS.textMuted} />
+            <Text style={[styles.roleToggleBtnText, !isDoctor && styles.roleToggleBtnTextActive]}>Assistant</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.inputContainer}>
           <Text style={styles.countryCode}>+91</Text>
@@ -124,6 +145,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textMuted,
     marginBottom: SPACING.xxxl,
+  },
+  roleToggle: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 4,
+    marginBottom: SPACING.xxl,
+    gap: 4,
+  },
+  roleToggleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: RADIUS.md,
+    gap: SPACING.xs,
+  },
+  roleToggleBtnActive: {
+    backgroundColor: COLORS.primary,
+  },
+  roleToggleBtnActiveGreen: {
+    backgroundColor: '#059669',
+  },
+  roleToggleBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+  },
+  roleToggleBtnTextActive: {
+    color: COLORS.white,
   },
   inputContainer: {
     flexDirection: 'row',
