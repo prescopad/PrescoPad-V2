@@ -90,6 +90,8 @@ function DoctorSettingsStack(): React.JSX.Element {
       <SettingsStack.Screen name="ClinicProfile" component={ClinicProfileScreen} options={{ headerShown: false }} />
       <SettingsStack.Screen name="ConnectionSettings" component={ConnectionScreen} options={{ headerShown: false }} />
       <SettingsStack.Screen name="MedicineTestManagement" component={MedicineTestManagementScreen} options={{ headerShown: false }} />
+      <SettingsStack.Screen name="WalletMain" component={WalletScreen} options={{ headerShown: false }} />
+      <SettingsStack.Screen name="AnalyticsMain" component={AnalyticsScreen} options={{ headerShown: false }} />
     </SettingsStack.Navigator>
   );
 }
@@ -139,8 +141,6 @@ export default function DoctorTabNavigator(): React.JSX.Element {
           let iconName: keyof typeof Ionicons.glyphMap = 'home';
           if (route.name === 'DoctorQueue') iconName = focused ? 'people' : 'people-outline';
           else if (route.name === 'DoctorPatients') iconName = focused ? 'person-add' : 'person-add-outline';
-          else if (route.name === 'DoctorWallet') iconName = focused ? 'wallet' : 'wallet-outline';
-          else if (route.name === 'DoctorAnalytics') iconName = focused ? 'bar-chart' : 'bar-chart-outline';
           else if (route.name === 'DoctorSettings') iconName = focused ? 'settings' : 'settings-outline';
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -156,8 +156,6 @@ export default function DoctorTabNavigator(): React.JSX.Element {
         options={{ tabBarLabel: t('nav.patients') }}
       />
 
-      <Tab.Screen name="DoctorWallet" component={DoctorWalletStack} options={{ tabBarLabel: t('nav.wallet') }} />
-      <Tab.Screen name="DoctorAnalytics" component={DoctorAnalyticsStack} options={{ tabBarLabel: t('nav.analytics') }} />
       <Tab.Screen name="DoctorSettings" component={DoctorSettingsStack} options={{ tabBarLabel: t('nav.settings') }} />
     </Tab.Navigator>
   );

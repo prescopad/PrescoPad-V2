@@ -11,8 +11,12 @@ export async function generatePrescriptionPDF(
   const html = buildPrescriptionHTML(prescription, clinic, doctor);
   const { uri } = await Print.printToFileAsync({ html, width: 595, height: 842 });
 
-  // Move to permanent location
-  const fileName = `${prescription.id}_${Date.now()}.pdf`;
+  // Move to permanent location — filename: Date_of_Visit_Name_of_Patient
+  const visitDate = new Date(prescription.createdAt)
+    .toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    .replace(/\//g, '-');
+  const safeName = (prescription.patientName || 'Patient').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
+  const fileName = `${visitDate}_${safeName}.pdf`;
   const prescriptionsDir = new Directory(Paths.document, 'prescriptions');
 
   // Ensure directory exists

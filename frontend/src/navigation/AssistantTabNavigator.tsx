@@ -17,6 +17,7 @@ import ConnectionScreen from '../screens/shared/ConnectionScreen';
 import PrescriptionViewScreen from '../screens/shared/PrescriptionViewScreen';
 import ClinicProfileScreen from '../screens/shared/ClinicProfileScreen';
 import MedicineTestManagementScreen from '../screens/settings/MedicineTestManagementScreen';
+import PatientFormScreen from '../screens/shared/PatientFormScreen';
 
 const Tab = createBottomTabNavigator();
 const QueueStack = createNativeStackNavigator();
@@ -30,6 +31,7 @@ function AssistantQueueStack(): React.JSX.Element {
       <QueueStack.Screen name="PatientSearch" component={PatientSearchScreen} options={{ headerShown: false }} />
       <QueueStack.Screen name="PatientDetail" component={PatientDetailScreen} options={{ headerShown: false }} />
       <QueueStack.Screen name="PrescriptionView" component={PrescriptionViewScreen} options={{ headerShown: false }} />
+      <QueueStack.Screen name="EditPatient" component={PatientFormScreen} options={{ headerShown: false }} />
     </QueueStack.Navigator>
   );
 }

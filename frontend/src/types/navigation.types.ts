@@ -44,6 +44,7 @@ export type AssistantStackParamList = {
   PrescriptionView: { prescriptionId: string };
   QueueManagement: undefined;
   Connection: undefined;
+  EditPatient: { patientId: string };
 };
 
 export type SharedStackParamList = {

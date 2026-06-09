@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -301,9 +302,11 @@ export default function MedicinePickerScreen({ navigation }: MedicinePickerScree
   );
 
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 80}
     >
       {/* Search Bar */}
       <View style={styles.searchBar}>
@@ -373,6 +376,7 @@ export default function MedicinePickerScreen({ navigation }: MedicinePickerScree
         </>
       )}
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 

@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  SafeAreaView,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -36,6 +38,7 @@ type LabTestPickerScreenProps = NativeStackScreenProps<DoctorStackParamList, 'La
 
 export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenProps): React.JSX.Element {
   const { t } = useTranslation();
+  const { width } = useWindowDimensions();
   const addLabTest = usePrescriptionStore((s) => s.addLabTest);
 
   const [query, setQuery] = useState('');
@@ -249,12 +252,14 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
   const selectedCount = selectedTests.size;
 
   return (
+    <SafeAreaView style={styles.safeArea}>
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 80}
     >
       {/* Search Bar */}
-      <View style={styles.searchBar}>
+      <View style={[styles.searchBar, { marginHorizontal: width < 360 ? SPACING.md : SPACING.lg }]}>
         <Ionicons name="search" size={20} color={COLORS.textMuted} />
         <TextInput
           ref={searchInputRef}
@@ -433,10 +438,15 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
         </>
       )}
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -447,7 +457,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.white,
-    marginHorizontal: SPACING.lg,
     marginTop: SPACING.md,
     marginBottom: SPACING.sm,
     paddingHorizontal: SPACING.md,

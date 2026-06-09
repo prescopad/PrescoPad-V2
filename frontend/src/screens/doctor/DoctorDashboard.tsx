@@ -9,6 +9,9 @@ import {
   RefreshControl,
   Alert,
   ActivityIndicator,
+  Modal,
+  SafeAreaView,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -38,6 +41,7 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'waiting' | 'in_progress' | 'completed'>('all');
   const [showAllHistory, setShowAllHistory] = useState(false);
+  const [showConsultTypeModal, setShowConsultTypeModal] = useState(false);
 
   const loadData = useCallback(async () => {
     const todayOnly = !showAllHistory;
@@ -356,6 +360,62 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
           }
         />
       )}
+
+      {/* Consultation Type Modal */}
+      <Modal
+        visible={showConsultTypeModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowConsultTypeModal(false)}
+      >
+        <View style={styles.consultModalOverlay}>
+          <View style={styles.consultModalSheet}>
+            <View style={styles.consultModalHeader}>
+              <Text style={styles.consultModalTitle}>Add Patient</Text>
+              <TouchableOpacity onPress={() => setShowConsultTypeModal(false)}>
+                <Ionicons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.consultModalSubtitle}>Choose the type of visit</Text>
+
+            <TouchableOpacity
+              style={styles.consultOption}
+              onPress={() => {
+                setShowConsultTypeModal(false);
+                navigation.getParent()?.navigate('DoctorPatients');
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.consultIconCircle, { backgroundColor: COLORS.successLight }]}>
+                <Ionicons name="person-add-outline" size={26} color={COLORS.success} />
+              </View>
+              <View style={styles.consultInfo}>
+                <Text style={styles.consultOptionTitle}>New Consultation</Text>
+                <Text style={styles.consultOptionSubtitle}>Register a new patient</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.consultOption}
+              onPress={() => {
+                setShowConsultTypeModal(false);
+                navigation.getParent()?.navigate('DoctorPatients');
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.consultIconCircle, { backgroundColor: COLORS.primarySurface }]}>
+                <Ionicons name="refresh-circle-outline" size={26} color={COLORS.primary} />
+              </View>
+              <View style={styles.consultInfo}>
+                <Text style={styles.consultOptionTitle}>Follow-up</Text>
+                <Text style={styles.consultOptionSubtitle}>Search existing patient</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -658,5 +718,64 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     textAlign: 'center',
     lineHeight: 19,
+  },
+
+  // Consultation type modal
+  consultModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  consultModalSheet: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
+    padding: SPACING.xl,
+    paddingBottom: SPACING.xxxl,
+  },
+  consultModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  consultModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  consultModalSubtitle: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    marginBottom: SPACING.xl,
+  },
+  consultOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    marginBottom: SPACING.md,
+    gap: SPACING.md,
+  },
+  consultIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  consultInfo: {
+    flex: 1,
+  },
+  consultOptionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  consultOptionSubtitle: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginTop: 2,
   },
 });

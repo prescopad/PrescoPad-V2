@@ -9,6 +9,9 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  Modal,
+  SafeAreaView,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
@@ -29,15 +32,27 @@ import { DoctorStackParamList } from '../../types/navigation.types';
 
 type Props = NativeStackScreenProps<DoctorStackParamList, 'PrescriptionPreview'>;
 
+type PaymentMethod = 'cash' | 'online';
+
 export default function PrescriptionPreviewScreen({ navigation, route }: Props): React.JSX.Element {
   const prescriptionId = route.params.prescriptionId;
   const readOnly = route.params.readOnly ?? false;
+  const { width } = useWindowDimensions();
   const { currentPrescription, loadPrescription, finalizePrescription } = usePrescriptionStore();
   const { canAfford, loadBalance, balance } = useWalletStore();
   const { clinic, doctorProfile } = useClinicStore();
   const { user } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
+
+  // Payment modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod | null>(null);
+
+  // Sign mode modal
+  const [showSignModeModal, setShowSignModeModal] = useState(false);
+  const [sigModalVisible, setSigModalVisible] = useState(false);
 
   useEffect(() => {
     if (prescriptionId) {
@@ -55,37 +70,26 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
     });
   };
 
-  const [sigModalVisible, setSigModalVisible] = useState(false);
-
   const signAndIssueWithSignature = async (signature: string, save: boolean) => {
     if (!rx) return;
     setIsSigning(true);
     try {
-      // Step 2: Generate PDF — embed the signature
       const rxForPdf = { ...rx, signature };
       const pdfPath = await generatePrescriptionPDF(rxForPdf, clinic, doctorProfile);
-
-      // Step 3: Hash PDF
       const pdfHash = await hashPDF(pdfPath);
-
-      // Step 4: Finalize prescription (backend deducts ₹1 atomically and persists signature)
       await finalizePrescription(rx.id, signature, pdfPath, pdfHash);
 
-      // Save signature to doctor profile for future reuse if requested
       if (save) {
         await useClinicStore.getState().updateDoctorProfile({ signatureBase64: signature });
       }
 
-      // Step 5: Mark queue item as completed (fire-and-forget)
       const queueItemId = usePrescriptionStore.getState().queueItemId;
       if (queueItemId) {
         updateQueueStatus(queueItemId, QueueStatus.COMPLETED).catch(() => {});
       }
 
-      // Step 6: Reload wallet balance to reflect backend deduction
       await loadBalance();
 
-      // Step 7: Navigate to success
       const updatedRx = usePrescriptionStore.getState().currentPrescription;
       navigation.replace('RxSuccess', { prescription: updatedRx ?? rx });
     } catch (error: unknown) {
@@ -99,7 +103,6 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
   const handleSignAndIssue = async () => {
     if (!rx) return;
 
-    // Step 1: Refresh then check wallet balance
     await loadBalance();
     const affordable = canAfford();
     if (!affordable) {
@@ -108,32 +111,38 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
         `You need ${APP_CONFIG.wallet.currencySymbol}${APP_CONFIG.wallet.costPerPrescription} to issue a prescription. Current balance: ${APP_CONFIG.wallet.currencySymbol}${balance}`,
         [
           { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Recharge',
-            onPress: () => navigation.getParent()?.navigate('DoctorWallet'),
-          },
+          { text: 'Recharge', onPress: () => navigation.getParent()?.navigate('DoctorWallet') },
         ],
       );
       return;
     }
 
-    // Check if there is a saved signature on the Doctor's profile
-    if (doctorProfile?.signatureBase64) {
-      Alert.alert(
-        'Confirm Signature',
-        'You have a saved signature on your profile. Would you like to use it or draw a new one?',
-        [
-          {
-            text: 'Draw New',
-            onPress: () => setSigModalVisible(true),
-          },
-          {
-            text: 'Use Saved',
-            onPress: () => signAndIssueWithSignature(doctorProfile.signatureBase64!, false),
-          },
-          { text: 'Cancel', style: 'cancel' },
-        ],
-      );
+    // Step 1: Show payment modal first
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentSelected = (method: PaymentMethod) => {
+    setSelectedPayment(method);
+    setShowPaymentModal(false);
+
+    if (method === 'online') {
+      // Show QR modal
+      setShowQRModal(true);
+    } else {
+      // Cash — go straight to signature
+      setShowSignModeModal(true);
+    }
+  };
+
+  const handleQRDone = () => {
+    setShowQRModal(false);
+    setShowSignModeModal(true);
+  };
+
+  const handleSignModeSelect = (mode: 'saved' | 'draw' | 'new') => {
+    setShowSignModeModal(false);
+    if (mode === 'saved' && doctorProfile?.signatureBase64) {
+      signAndIssueWithSignature(doctorProfile.signatureBase64, false);
     } else {
       setSigModalVisible(true);
     }
@@ -148,8 +157,11 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
     );
   }
 
+  const hasSavedSignature = !!doctorProfile?.signatureBase64;
+  const hasQR = !!doctorProfile?.signatureBase64; // reuse signatureBase64 field check; QR would be a separate field ideally
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
 
       {/* Header */}
@@ -161,9 +173,9 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={[styles.scrollContent, { paddingBottom: readOnly ? SPACING.xxxl : 100 }]}>
         {/* Prescription Paper */}
-        <View style={styles.paper}>
+        <View style={[styles.paper, { padding: width < 360 ? SPACING.md : SPACING.xl }]}>
           {/* Clinic Header */}
           <View style={styles.clinicHeader}>
             <Text style={styles.clinicName}>{clinic?.name || 'PrescoPad Clinic'}</Text>
@@ -182,13 +194,10 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
             </Text>
           </View>
 
-          {/* Rx Header & Date */}
-          <View style={styles.rxRow}>
-            <Text style={styles.rxSymbol}>Rx</Text>
-            <View style={styles.rxMeta}>
-              <Text style={styles.rxDate}>Date: {formatDate(rx.createdAt)}</Text>
-              <Text style={styles.rxId}>ID: {rx.id}</Text>
-            </View>
+          {/* Date row (Rx symbol removed) */}
+          <View style={styles.dateRow}>
+            <Text style={styles.rxDate}>Date: {formatDate(rx.createdAt)}</Text>
+            <Text style={styles.rxId}>ID: {rx.id}</Text>
           </View>
 
           {/* Patient Details */}
@@ -207,6 +216,16 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
             </View>
           </View>
 
+          {/* Symptoms */}
+          {rx.symptoms && rx.symptoms.length > 0 ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>SYMPTOMS</Text>
+              <View style={styles.diagnosisBox}>
+                <Text style={styles.diagnosisText}>{rx.symptoms.join(', ')}</Text>
+              </View>
+            </View>
+          ) : null}
+
           {/* Diagnosis */}
           {rx.diagnosis ? (
             <View style={styles.section}>
@@ -222,7 +241,6 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>MEDICINES</Text>
               <View style={styles.table}>
-                {/* Table Header */}
                 <View style={styles.tableHeader}>
                   <Text style={[styles.tableHeaderCell, styles.colNum]}>#</Text>
                   <Text style={[styles.tableHeaderCell, styles.colName]}>Name</Text>
@@ -230,7 +248,6 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
                   <Text style={[styles.tableHeaderCell, styles.colDuration]}>Duration</Text>
                   <Text style={[styles.tableHeaderCell, styles.colTiming]}>Timing</Text>
                 </View>
-                {/* Table Rows */}
                 {rx.medicines.map((med, index) => (
                   <View key={med.id || index} style={styles.tableRow}>
                     <Text style={[styles.tableCell, styles.colNum]}>{index + 1}</Text>
@@ -351,6 +368,155 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Payment Method Modal */}
+      <Modal
+        visible={showPaymentModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPaymentModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Payment Method</Text>
+              <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
+                <Ionicons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalSubtitle}>Choose how the patient will pay for this consultation</Text>
+
+            <TouchableOpacity
+              style={styles.paymentOption}
+              onPress={() => handlePaymentSelected('cash')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.paymentIconCircle, { backgroundColor: COLORS.successLight }]}>
+                <Ionicons name="cash-outline" size={28} color={COLORS.success} />
+              </View>
+              <View style={styles.paymentInfo}>
+                <Text style={styles.paymentTitle}>Cash</Text>
+                <Text style={styles.paymentSubtitle}>Patient pays in cash</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.paymentOption}
+              onPress={() => handlePaymentSelected('online')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.paymentIconCircle, { backgroundColor: COLORS.primarySurface }]}>
+                <Ionicons name="qr-code-outline" size={28} color={COLORS.primary} />
+              </View>
+              <View style={styles.paymentInfo}>
+                <Text style={styles.paymentTitle}>Online / UPI</Text>
+                <Text style={styles.paymentSubtitle}>Show QR code for payment</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* QR Code Modal */}
+      <Modal
+        visible={showQRModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowQRModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Scan to Pay</Text>
+              <TouchableOpacity onPress={() => setShowQRModal(false)}>
+                <Ionicons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.qrContainer}>
+              {doctorProfile?.signatureBase64 ? (
+                <Image
+                  source={{ uri: doctorProfile.signatureBase64 }}
+                  style={styles.qrImage}
+                  resizeMode="contain"
+                />
+              ) : (
+                <View style={styles.qrPlaceholder}>
+                  <Ionicons name="qr-code-outline" size={80} color={COLORS.textLight} />
+                  <Text style={styles.qrPlaceholderText}>No QR uploaded</Text>
+                  <Text style={styles.qrHint}>Upload your payment QR in Settings → Clinic Profile</Text>
+                </View>
+              )}
+            </View>
+
+            <Text style={styles.qrInstructions}>
+              Ask the patient to scan this QR code and complete payment
+            </Text>
+
+            <TouchableOpacity
+              style={styles.qrDoneButton}
+              onPress={handleQRDone}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="checkmark-circle-outline" size={20} color={COLORS.white} />
+              <Text style={styles.qrDoneText}>Payment Received — Continue</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Sign Mode Selection Modal */}
+      <Modal
+        visible={showSignModeModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSignModeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Choose Signature</Text>
+              <TouchableOpacity onPress={() => setShowSignModeModal(false)}>
+                <Ionicons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalSubtitle}>Select how you want to sign this prescription</Text>
+
+            {hasSavedSignature && (
+              <TouchableOpacity
+                style={styles.signOption}
+                onPress={() => handleSignModeSelect('saved')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.paymentIconCircle, { backgroundColor: COLORS.primarySurface }]}>
+                  <Ionicons name="checkmark-done-outline" size={24} color={COLORS.primary} />
+                </View>
+                <View style={styles.paymentInfo}>
+                  <Text style={styles.paymentTitle}>Use Saved Signature</Text>
+                  <Text style={styles.paymentSubtitle}>Use the signature from your profile</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.signOption}
+              onPress={() => handleSignModeSelect('draw')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.paymentIconCircle, { backgroundColor: COLORS.warningLight }]}>
+                <Ionicons name="create-outline" size={24} color={COLORS.warning} />
+              </View>
+              <View style={styles.paymentInfo}>
+                <Text style={styles.paymentTitle}>Draw Signature</Text>
+                <Text style={styles.paymentSubtitle}>Draw your signature with your finger</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Signature Modal */}
       <SignatureModal
         visible={sigModalVisible}
@@ -360,12 +526,12 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
           signAndIssueWithSignature(signature, save);
         }}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
@@ -407,7 +573,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: SPACING.lg,
-    paddingBottom: 100,
   },
 
   // Paper styling
@@ -416,7 +581,6 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: SPACING.xl,
     ...SHADOWS.lg,
   },
   clinicHeader: {
@@ -443,20 +607,11 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
     fontWeight: '600',
   },
-  rxRow: {
+  dateRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: SPACING.md,
-  },
-  rxSymbol: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: COLORS.primary,
-    fontStyle: 'italic',
-  },
-  rxMeta: {
-    alignItems: 'flex-end',
   },
   rxDate: {
     fontSize: 12,
@@ -466,7 +621,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: COLORS.primary,
     fontWeight: '600',
-    marginTop: 2,
   },
 
   // Patient section
@@ -477,9 +631,12 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.sm,
     padding: SPACING.md,
     marginBottom: SPACING.lg,
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
   },
   patientField: {
     flex: 1,
+    minWidth: 80,
   },
   patientLabel: {
     fontSize: 9,
@@ -717,5 +874,127 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+
+  // Modals
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
+    padding: SPACING.xl,
+    paddingBottom: SPACING.xxxl,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    marginBottom: SPACING.xl,
+  },
+
+  // Payment options
+  paymentOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    marginBottom: SPACING.md,
+    gap: SPACING.md,
+  },
+  paymentIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  paymentInfo: {
+    flex: 1,
+  },
+  paymentTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  paymentSubtitle: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+
+  // QR
+  qrContainer: {
+    alignItems: 'center',
+    paddingVertical: SPACING.xxl,
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: RADIUS.lg,
+    marginBottom: SPACING.lg,
+  },
+  qrImage: {
+    width: 200,
+    height: 200,
+  },
+  qrPlaceholder: {
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  qrPlaceholderText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+  },
+  qrHint: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    paddingHorizontal: SPACING.xl,
+  },
+  qrInstructions: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: SPACING.lg,
+    lineHeight: 19,
+  },
+  qrDoneButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.success,
+    borderRadius: RADIUS.lg,
+    paddingVertical: 14,
+    gap: SPACING.sm,
+    ...SHADOWS.md,
+  },
+  qrDoneText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.white,
+  },
+
+  // Sign options
+  signOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    marginBottom: SPACING.md,
+    gap: SPACING.md,
   },
 });

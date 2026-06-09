@@ -10,6 +10,9 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  useWindowDimensions,
+  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +21,7 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { usePrescriptionStore } from '../../store/usePrescriptionStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { usePatientStore } from '../../store/usePatientStore';
 import { PrescriptionMedicine, PrescriptionLabTest } from '../../types/prescription.types';
 import { DoctorStackParamList } from '../../types/navigation.types';
 
@@ -26,17 +30,22 @@ type LabTestDraft = Omit<PrescriptionLabTest, 'id' | 'prescriptionId'>;
 
 type ConsultScreenProps = NativeStackScreenProps<DoctorStackParamList, 'Consult'>;
 
-const COMMON_DISEASES = [
-  'Fever', 'Cold & Cough', 'Viral Infection', 'Typhoid', 'Malaria', 'Dengue',
-  'Diabetes', 'Hypertension', 'Gastritis / Acidity', 'UTI', 'Respiratory Infection',
-  'Diarrhea / Gastroenteritis', 'Skin Allergy', 'Anemia', 'Back Pain',
-  'Migraine', 'Asthma', 'Arthritis', 'Hypothyroidism', 'Anxiety / Stress',
+const COMMON_SYMPTOMS = [
+  'Fever', 'Cold & Cough', 'Headache', 'Body Pain', 'Fatigue',
+  'Nausea', 'Vomiting', 'Diarrhea', 'Chest Pain', 'Shortness of Breath',
+  'Abdominal Pain', 'Back Pain', 'Joint Pain', 'Skin Rash', 'Sore Throat',
+  'Runny Nose', 'Loss of Appetite', 'Dizziness', 'Swelling', 'Itching',
+  'Weakness', 'Insomnia', 'Anxiety', 'Palpitations', 'Constipation',
+  'Burning Urination', 'Blurred Vision', 'Ear Pain', 'Toothache', 'Eye Redness',
 ] as const;
 
 export default function ConsultScreen({ navigation, route }: ConsultScreenProps): React.JSX.Element {
   const { t } = useTranslation();
-  const { queueItem, patient } = route.params;
+  const { width } = useWindowDimensions();
+  const { queueItem, patient: initialPatient } = route.params;
   const user = useAuthStore((s) => s.user);
+  const getPatientById = usePatientStore((s) => s.getPatientById);
+
   const {
     currentDraft,
     updateDraft,
@@ -50,6 +59,10 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
 
   const [isCreating, setIsCreating] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showSymptomsModal, setShowSymptomsModal] = useState(false);
+  const [customSymptom, setCustomSymptom] = useState('');
+  // Live patient data for real-time updates
+  const [patient, setPatient] = useState(initialPatient);
 
   // Reset draft when doctor leaves Consult via back button (not forward to Preview)
   useEffect(() => {
@@ -60,38 +73,54 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
   }, [navigation, resetDraft]);
 
   useEffect(() => {
-    // Always store the queue item ID so finalization can mark it completed.
     setQueueItemId(queueItem.id);
-
-    // Fresh consultation — initialise draft with patient info only.
+    const pid = initialPatient?.id || queueItem.patientId;
     updateDraft({
-      patientId: patient?.id || queueItem.patientId,
-      patientName: patient?.name || 'Unknown',
-      patientAge: patient?.age?.toString() || '',
-      patientGender: patient?.gender || '',
-      patientWeight: patient?.weight?.toString() || '',
-      patientPhone: patient?.phone || '',
+      patientId: pid,
+      patientName: initialPatient?.name || 'Unknown',
+      patientAge: initialPatient?.age?.toString() || '',
+      patientGender: initialPatient?.gender || '',
+      patientWeight: initialPatient?.weight?.toString() || '',
+      patientPhone: initialPatient?.phone || '',
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleDiagnosisChange = (text: string) => updateDraft({ diagnosis: text });
+  // Reload patient when screen comes back into focus (after editing)
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', async () => {
+      const pid = initialPatient?.id || queueItem.patientId;
+      if (!pid) return;
+      try {
+        const freshPatient = await getPatientById(pid);
+        if (freshPatient) {
+          setPatient(freshPatient);
+          updateDraft({
+            patientName: freshPatient.name,
+            patientAge: freshPatient.age?.toString() || '',
+            patientGender: freshPatient.gender || '',
+            patientWeight: freshPatient.weight?.toString() || '',
+            patientPhone: freshPatient.phone || '',
+          });
+        }
+      } catch {
+        // Silently handle
+      }
+    });
+    return unsubscribe;
+  }, [navigation, initialPatient, queueItem, getPatientById, updateDraft]);
+
   const handleAdviceChange = (text: string) => updateDraft({ advice: text });
 
-  // Follow-up date is selected via a native calendar picker. The draft stores
-  // a DD/MM/YYYY string for display + backend compatibility; we round-trip via
-  // a Date when opening the picker and on selection.
   const parseFollowUpToDate = (s: string): Date => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    // DD/MM/YYYY
     const ddmmyyyy = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     if (ddmmyyyy) {
       const [, dd, mm, yyyy] = ddmmyyyy;
       const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
       if (!isNaN(d.getTime())) return d;
     }
-    // YYYY-MM-DD (what the AI extraction emits)
     const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (iso) {
       const [, yyyy, mm, dd] = iso;
@@ -109,7 +138,6 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
   };
 
   const handleDatePicked = (event: DateTimePickerEvent, selected?: Date) => {
-    // Android closes the dialog itself; iOS keeps the spinner open until tapped away.
     setShowDatePicker(Platform.OS === 'ios');
     if (event.type === 'dismissed' || !selected) return;
     updateDraft({ followUpDate: formatDateISO(selected) });
@@ -117,13 +145,8 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
 
   const todayAtMidnight = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
 
-  const handleAddMedicine = () => {
-    navigation.navigate('MedicinePicker');
-  };
-
-  const handleAddLabTest = () => {
-    navigation.navigate('LabTestPicker');
-  };
+  const handleAddMedicine = () => navigation.navigate('MedicinePicker');
+  const handleAddLabTest = () => navigation.navigate('LabTestPicker');
 
   const handleRemoveMedicine = (index: number) => {
     Alert.alert(
@@ -131,11 +154,7 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
       `Remove ${currentDraft.medicines[index]?.medicineName}?`,
       [
         { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => removeMedicine(index),
-        },
+        { text: 'Remove', style: 'destructive', onPress: () => removeMedicine(index) },
       ]
     );
   };
@@ -146,25 +165,42 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
       `Remove ${currentDraft.labTests[index]?.testName}?`,
       [
         { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => removeLabTest(index),
-        },
+        { text: 'Remove', style: 'destructive', onPress: () => removeLabTest(index) },
       ]
     );
   };
 
+  const toggleSymptom = (symptom: string) => {
+    const current = currentDraft.symptoms || [];
+    const next = current.includes(symptom)
+      ? current.filter((s) => s !== symptom)
+      : [...current, symptom];
+    updateDraft({ symptoms: next });
+  };
+
+  const addCustomSymptom = () => {
+    const trimmed = customSymptom.trim();
+    if (!trimmed) return;
+    const current = currentDraft.symptoms || [];
+    if (!current.includes(trimmed)) {
+      updateDraft({ symptoms: [...current, trimmed] });
+    }
+    setCustomSymptom('');
+  };
+
+  const removeSymptom = (symptom: string) => {
+    const current = currentDraft.symptoms || [];
+    updateDraft({ symptoms: current.filter((s) => s !== symptom) });
+  };
+
   const handlePreview = async () => {
-    if (!currentDraft.diagnosis.trim()) {
-      Alert.alert(t('common.required'), t('consult.diagnosisRequired'));
+    const symptoms = currentDraft.symptoms || [];
+    if (symptoms.length === 0 && !currentDraft.diagnosis) {
+      Alert.alert(t('common.required'), 'Please select at least one symptom.');
       return;
     }
     if (currentDraft.medicines.length === 0 && currentDraft.labTests.length === 0) {
-      Alert.alert(
-        'Empty Prescription',
-        t('consult.needMedOrTest'),
-      );
+      Alert.alert('Empty Prescription', t('consult.needMedOrTest'));
       return;
     }
     if (!user?.id) {
@@ -188,274 +224,375 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
     ? patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1)
     : '--';
 
+  const selectedSymptoms = currentDraft.symptoms || [];
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 80}
       >
-        {/* Patient Info Card */}
-        <View style={styles.patientCard}>
-          <View style={styles.patientIconRow}>
-            <View style={styles.patientIcon}>
-              <Ionicons name="person" size={20} color={COLORS.primary} />
-            </View>
-            <View style={styles.patientDetails}>
-              <Text style={styles.patientName}>{patient?.name || 'Unknown Patient'}</Text>
-              <Text style={styles.patientMeta}>
-                {patient?.age || '--'} yrs | {patientGenderDisplay} | {patient?.phone || '--'}
-              </Text>
-              {patient?.weight ? (
-                <Text style={styles.patientMeta}>Weight: {patient.weight} kg</Text>
-              ) : null}
-              {patient?.allergies && !['no', 'none', 'n/a', 'nil', '-', 'nill'].includes(patient.allergies.toLowerCase().trim()) ? (
-                <View style={styles.allergyBadge}>
-                  <Ionicons name="warning" size={12} color={COLORS.error} />
-                  <Text style={styles.allergyText}>Allergies: {patient.allergies}</Text>
-                </View>
-              ) : null}
-            </View>
-            <TouchableOpacity
-              style={styles.editPatientButton}
-              onPress={() => patient && navigation.navigate('EditPatient', { patientId: patient.id })}
-            >
-              <Ionicons name="create-outline" size={20} color={COLORS.primary} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Diagnosis */}
-        <View style={styles.section}>
-          <View style={styles.sectionLabelRow}>
-            <Text style={styles.sectionTitle}>{t('consult.diagnosis')} *</Text>
-          </View>
-
-          {/* Common Disease Quick-Select Chips */}
-          <Text style={styles.commonDiseasesLabel}>Quick Select</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.commonDiseasesRow}
-            keyboardShouldPersistTaps="handled"
-          >
-            {COMMON_DISEASES.map((disease) => {
-              const isSelected = currentDraft.diagnosis === disease;
-              return (
-                <TouchableOpacity
-                  key={disease}
-                  style={[styles.diseaseChip, isSelected && styles.diseaseChipSelected]}
-                  onPress={() => handleDiagnosisChange(isSelected ? '' : disease)}
-                  activeOpacity={0.75}
-                >
-                  <Text style={[styles.diseaseChipText, isSelected && styles.diseaseChipTextSelected]}>
-                    {disease}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          <TextInput
-            style={styles.diagnosisInput}
-            placeholder="Type custom diagnosis or select above..."
-            placeholderTextColor={COLORS.textLight}
-            value={currentDraft.diagnosis}
-            onChangeText={handleDiagnosisChange}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-          />
-        </View>
-
-        {/* Medicines */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <View style={styles.sectionLabelRow}>
-              <Text style={styles.sectionTitle}>
-                {t('consult.medicines')} ({currentDraft.medicines.length})
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={handleAddMedicine}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="add" size={18} color={COLORS.white} />
-              <Text style={styles.addButtonText}>{t('common.add')}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {currentDraft.medicines.length === 0 ? (
-            <TouchableOpacity
-              style={styles.emptySection}
-              onPress={handleAddMedicine}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="medical-outline" size={24} color={COLORS.textLight} />
-              <Text style={styles.emptyText}>Tap to add medicines</Text>
-            </TouchableOpacity>
-          ) : (
-            currentDraft.medicines.map((med: MedicineDraft, index: number) => (
-              <View key={`med-${index}`} style={styles.itemCard}>
-                <View style={styles.itemContent}>
-                  <View style={styles.itemHeader}>
-                    <Text style={styles.itemName}>{med.medicineName}</Text>
-                    <TouchableOpacity
-                      onPress={() => handleRemoveMedicine(index)}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                      <Ionicons name="close-circle" size={22} color={COLORS.error} />
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={styles.itemDetail}>
-                    {med.type}{med.dosage ? ` - ${med.dosage}` : ''}
-                  </Text>
-                  <Text style={styles.itemDetail}>
-                    {med.frequency} | {med.duration} | {med.timing}
-                  </Text>
-                  {med.notes ? (
-                    <Text style={styles.itemNotes}>{med.notes}</Text>
-                  ) : null}
-                </View>
-              </View>
-            ))
-          )}
-        </View>
-
-        {/* Lab Tests */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <View style={styles.sectionLabelRow}>
-              <Text style={styles.sectionTitle}>
-                {t('consult.labTests')} ({currentDraft.labTests.length})
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={handleAddLabTest}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="add" size={18} color={COLORS.white} />
-              <Text style={styles.addButtonText}>{t('common.add')}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {currentDraft.labTests.length === 0 ? (
-            <TouchableOpacity
-              style={styles.emptySection}
-              onPress={handleAddLabTest}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="flask-outline" size={24} color={COLORS.textLight} />
-              <Text style={styles.emptyText}>Tap to add lab tests</Text>
-            </TouchableOpacity>
-          ) : (
-            currentDraft.labTests.map((test: LabTestDraft, index: number) => (
-              <View key={`test-${index}`} style={styles.itemCard}>
-                <View style={styles.itemContent}>
-                  <View style={styles.itemHeader}>
-                    <Text style={styles.itemName}>{test.testName}</Text>
-                    <TouchableOpacity
-                      onPress={() => handleRemoveLabTest(index)}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                      <Ionicons name="close-circle" size={22} color={COLORS.error} />
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={styles.itemDetail}>{test.category}</Text>
-                  {test.notes ? (
-                    <Text style={styles.itemNotes}>{test.notes}</Text>
-                  ) : null}
-                </View>
-              </View>
-            ))
-          )}
-        </View>
-
-        {/* Additional Advice */}
-        <View style={styles.section}>
-          <View style={styles.sectionLabelRow}>
-            <Text style={styles.sectionTitle}>Additional Advice</Text>
-          </View>
-          <TextInput
-            style={styles.adviceInput}
-            placeholder="Any additional advice for the patient..."
-            placeholderTextColor={COLORS.textLight}
-            value={currentDraft.advice}
-            onChangeText={handleAdviceChange}
-            multiline
-            numberOfLines={2}
-            textAlignVertical="top"
-          />
-        </View>
-
-        {/* Follow-up Date */}
-        <View style={styles.section}>
-          <View style={styles.sectionLabelRow}>
-            <Text style={styles.sectionTitle}>{t('consult.followUp')}</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.followUpRow}
-            onPress={() => setShowDatePicker(true)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="calendar-outline" size={20} color={COLORS.textMuted} />
-            <Text style={[styles.followUpInput, !currentDraft.followUpDate && { color: COLORS.textLight }]}>
-              {currentDraft.followUpDate || t('consult.pickDate')}
-            </Text>
-            {currentDraft.followUpDate ? (
-              <TouchableOpacity onPress={() => updateDraft({ followUpDate: '' })} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
-              </TouchableOpacity>
-            ) : null}
-          </TouchableOpacity>
-          {showDatePicker && (
-            <DateTimePicker
-              value={parseFollowUpToDate(currentDraft.followUpDate)}
-              mode="date"
-              minimumDate={todayAtMidnight}
-              display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              onChange={handleDatePicked}
-            />
-          )}
-        </View>
-
-        {/* Spacer for bottom button */}
-        <View style={{ height: 100 }} />
-      </ScrollView>
-
-      {/* Preview Button */}
-      <View style={styles.bottomBar}>
-        <TouchableOpacity
-          style={[
-            styles.previewButton,
-            (isCreating || isLoading) && styles.previewButtonDisabled,
-          ]}
-          onPress={handlePreview}
-          activeOpacity={0.8}
-          disabled={isCreating || isLoading}
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[styles.scrollContent, { paddingHorizontal: width < 360 ? SPACING.md : SPACING.lg }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          {isCreating || isLoading ? (
-            <ActivityIndicator color={COLORS.white} />
-          ) : (
-            <>
-              <Ionicons name="document-text" size={20} color={COLORS.white} />
-              <Text style={styles.previewButtonText}>{t('consult.preview')}</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+          {/* Patient Info Card */}
+          <View style={styles.patientCard}>
+            <View style={styles.patientIconRow}>
+              <View style={styles.patientIcon}>
+                <Ionicons name="person" size={20} color={COLORS.primary} />
+              </View>
+              <View style={styles.patientDetails}>
+                <Text style={styles.patientName}>{patient?.name || 'Unknown Patient'}</Text>
+                <Text style={styles.patientMeta}>
+                  {patient?.age || '--'} yrs | {patientGenderDisplay} | {patient?.phone || '--'}
+                </Text>
+                {patient?.weight ? (
+                  <Text style={styles.patientMeta}>Weight: {patient.weight} kg</Text>
+                ) : null}
+                {patient?.allergies && !['no', 'none', 'n/a', 'nil', '-', 'nill'].includes(patient.allergies.toLowerCase().trim()) ? (
+                  <View style={styles.allergyBadge}>
+                    <Ionicons name="warning" size={12} color={COLORS.error} />
+                    <Text style={styles.allergyText}>Allergies: {patient.allergies}</Text>
+                  </View>
+                ) : null}
+              </View>
+              <TouchableOpacity
+                style={styles.editPatientButton}
+                onPress={() => patient && navigation.navigate('EditPatient', { patientId: patient.id })}
+              >
+                <Ionicons name="create-outline" size={20} color={COLORS.primary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Symptoms Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.sectionLabelRow}>
+                <Text style={styles.sectionTitle}>Symptoms *</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => setShowSymptomsModal(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="add" size={18} color={COLORS.white} />
+                <Text style={styles.addButtonText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+
+            {selectedSymptoms.length === 0 ? (
+              <TouchableOpacity
+                style={styles.emptySection}
+                onPress={() => setShowSymptomsModal(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="list-outline" size={24} color={COLORS.textLight} />
+                <Text style={styles.emptyText}>Tap to add symptoms</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.selectedSymptomsContainer}>
+                {selectedSymptoms.map((symptom) => (
+                  <View key={symptom} style={styles.selectedSymptomChip}>
+                    <Text style={styles.selectedSymptomText}>{symptom}</Text>
+                    <TouchableOpacity
+                      onPress={() => removeSymptom(symptom)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="close-circle" size={16} color={COLORS.white} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                <TouchableOpacity
+                  style={styles.addMoreChip}
+                  onPress={() => setShowSymptomsModal(true)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="add" size={16} color={COLORS.primary} />
+                  <Text style={styles.addMoreChipText}>More</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          {/* Medicines */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.sectionLabelRow}>
+                <Text style={styles.sectionTitle}>
+                  {t('consult.medicines')} ({currentDraft.medicines.length})
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={handleAddMedicine}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="add" size={18} color={COLORS.white} />
+                <Text style={styles.addButtonText}>{t('common.add')}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {currentDraft.medicines.length === 0 ? (
+              <TouchableOpacity
+                style={styles.emptySection}
+                onPress={handleAddMedicine}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="medical-outline" size={24} color={COLORS.textLight} />
+                <Text style={styles.emptyText}>Tap to add medicines</Text>
+              </TouchableOpacity>
+            ) : (
+              currentDraft.medicines.map((med: MedicineDraft, index: number) => (
+                <View key={`med-${index}`} style={styles.itemCard}>
+                  <View style={styles.itemContent}>
+                    <View style={styles.itemHeader}>
+                      <Text style={styles.itemName} numberOfLines={2}>{med.medicineName}</Text>
+                      <TouchableOpacity
+                        onPress={() => handleRemoveMedicine(index)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <Ionicons name="close-circle" size={22} color={COLORS.error} />
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.itemDetail}>
+                      {med.type}{med.dosage ? ` - ${med.dosage}` : ''}
+                    </Text>
+                    <Text style={styles.itemDetail}>
+                      {med.frequency} | {med.duration} | {med.timing}
+                    </Text>
+                    {med.notes ? (
+                      <Text style={styles.itemNotes}>{med.notes}</Text>
+                    ) : null}
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+
+          {/* Lab Tests */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.sectionLabelRow}>
+                <Text style={styles.sectionTitle}>
+                  {t('consult.labTests')} ({currentDraft.labTests.length})
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={handleAddLabTest}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="add" size={18} color={COLORS.white} />
+                <Text style={styles.addButtonText}>{t('common.add')}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {currentDraft.labTests.length === 0 ? (
+              <TouchableOpacity
+                style={styles.emptySection}
+                onPress={handleAddLabTest}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="flask-outline" size={24} color={COLORS.textLight} />
+                <Text style={styles.emptyText}>Tap to add lab tests</Text>
+              </TouchableOpacity>
+            ) : (
+              currentDraft.labTests.map((test: LabTestDraft, index: number) => (
+                <View key={`test-${index}`} style={styles.itemCard}>
+                  <View style={styles.itemContent}>
+                    <View style={styles.itemHeader}>
+                      <Text style={styles.itemName} numberOfLines={2}>{test.testName}</Text>
+                      <TouchableOpacity
+                        onPress={() => handleRemoveLabTest(index)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <Ionicons name="close-circle" size={22} color={COLORS.error} />
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.itemDetail}>{test.category}</Text>
+                    {test.notes ? (
+                      <Text style={styles.itemNotes}>{test.notes}</Text>
+                    ) : null}
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+
+          {/* Additional Advice */}
+          <View style={styles.section}>
+            <View style={styles.sectionLabelRow}>
+              <Text style={styles.sectionTitle}>Additional Advice</Text>
+            </View>
+            <TextInput
+              style={styles.adviceInput}
+              placeholder="Any additional advice for the patient..."
+              placeholderTextColor={COLORS.textLight}
+              value={currentDraft.advice}
+              onChangeText={handleAdviceChange}
+              multiline
+              numberOfLines={2}
+              textAlignVertical="top"
+            />
+          </View>
+
+          {/* Follow-up Date */}
+          <View style={styles.section}>
+            <View style={styles.sectionLabelRow}>
+              <Text style={styles.sectionTitle}>{t('consult.followUp')}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.followUpRow}
+              onPress={() => setShowDatePicker(true)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="calendar-outline" size={20} color={COLORS.textMuted} />
+              <Text style={[styles.followUpInput, !currentDraft.followUpDate && { color: COLORS.textLight }]}>
+                {currentDraft.followUpDate || t('consult.pickDate')}
+              </Text>
+              {currentDraft.followUpDate ? (
+                <TouchableOpacity onPress={() => updateDraft({ followUpDate: '' })} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
+                </TouchableOpacity>
+              ) : null}
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={parseFollowUpToDate(currentDraft.followUpDate)}
+                mode="date"
+                minimumDate={todayAtMidnight}
+                display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                onChange={handleDatePicked}
+              />
+            )}
+          </View>
+
+          {/* Spacer for bottom button */}
+          <View style={{ height: 100 }} />
+        </ScrollView>
+
+        {/* Preview Button */}
+        <View style={styles.bottomBar}>
+          <TouchableOpacity
+            style={[
+              styles.previewButton,
+              (isCreating || isLoading) && styles.previewButtonDisabled,
+            ]}
+            onPress={handlePreview}
+            activeOpacity={0.8}
+            disabled={isCreating || isLoading}
+          >
+            {isCreating || isLoading ? (
+              <ActivityIndicator color={COLORS.white} />
+            ) : (
+              <>
+                <Ionicons name="document-text" size={20} color={COLORS.white} />
+                <Text style={styles.previewButtonText}>{t('consult.preview')}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Symptoms Selection Modal */}
+        <Modal
+          visible={showSymptomsModal}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setShowSymptomsModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalSheet, { maxHeight: '85%' }]}>
+              {/* Modal Header */}
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Symptoms</Text>
+                <TouchableOpacity onPress={() => setShowSymptomsModal(false)}>
+                  <Ionicons name="close" size={24} color={COLORS.text} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Selected count */}
+              {selectedSymptoms.length > 0 && (
+                <View style={styles.selectedCountRow}>
+                  <Text style={styles.selectedCountText}>
+                    {selectedSymptoms.length} selected
+                  </Text>
+                </View>
+              )}
+
+              <ScrollView
+                style={{ flex: 1 }}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
+                {/* Common symptoms grid */}
+                <View style={styles.symptomsGrid}>
+                  {COMMON_SYMPTOMS.map((symptom) => {
+                    const isSelected = selectedSymptoms.includes(symptom);
+                    return (
+                      <TouchableOpacity
+                        key={symptom}
+                        style={[styles.symptomGridItem, isSelected && styles.symptomGridItemSelected]}
+                        onPress={() => toggleSymptom(symptom)}
+                        activeOpacity={0.7}
+                      >
+                        {isSelected && (
+                          <Ionicons name="checkmark" size={14} color={COLORS.white} style={{ marginRight: 4 }} />
+                        )}
+                        <Text style={[styles.symptomGridText, isSelected && styles.symptomGridTextSelected]}>
+                          {symptom}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Add custom symptom */}
+                <View style={styles.customSymptomRow}>
+                  <TextInput
+                    style={styles.customSymptomInput}
+                    placeholder="Type custom symptom..."
+                    placeholderTextColor={COLORS.textLight}
+                    value={customSymptom}
+                    onChangeText={setCustomSymptom}
+                    onSubmitEditing={addCustomSymptom}
+                    returnKeyType="done"
+                  />
+                  <TouchableOpacity
+                    style={styles.customSymptomAdd}
+                    onPress={addCustomSymptom}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="add" size={22} color={COLORS.white} />
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+
+              <TouchableOpacity
+                style={styles.modalDoneButton}
+                onPress={() => setShowSymptomsModal(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalDoneButtonText}>Done ({selectedSymptoms.length})</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -465,6 +602,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: SPACING.lg,
+    paddingBottom: 20,
   },
 
   // Patient Card
@@ -547,17 +685,44 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
 
-  // Inputs
-  diagnosisInput: {
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: SPACING.md,
-    fontSize: 14,
-    color: COLORS.text,
-    minHeight: 80,
+  // Symptoms
+  selectedSymptomsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
   },
+  selectedSymptomChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+    gap: SPACING.xs,
+  },
+  selectedSymptomText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.white,
+  },
+  addMoreChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primarySurface,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    gap: 2,
+  },
+  addMoreChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+
+  // Inputs
   adviceInput: {
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.md,
@@ -634,7 +799,7 @@ const styles = StyleSheet.create({
   itemHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 2,
   },
   itemName: {
@@ -658,10 +823,6 @@ const styles = StyleSheet.create({
 
   // Bottom Bar
   bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: COLORS.white,
     padding: SPACING.lg,
     borderTopWidth: 1,
@@ -687,21 +848,53 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
 
-  // Common Disease Chips
-  commonDiseasesLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.textMuted,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    marginBottom: SPACING.sm,
+  // Symptoms Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
-  commonDiseasesRow: {
-    gap: SPACING.sm,
-    paddingVertical: SPACING.xs,
+  modalSheet: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.xxxl,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xl,
     paddingBottom: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
   },
-  diseaseChip: {
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  selectedCountRow: {
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.sm,
+    backgroundColor: COLORS.primarySurface,
+  },
+  selectedCountText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  symptomsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.lg,
+  },
+  symptomGridItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     borderRadius: RADIUS.full,
@@ -709,17 +902,55 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     backgroundColor: COLORS.white,
   },
-  diseaseChipSelected: {
+  symptomGridItemSelected: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
   },
-  diseaseChipText: {
+  symptomGridText: {
     fontSize: 13,
     fontWeight: '600',
     color: COLORS.textSecondary,
   },
-  diseaseChipTextSelected: {
+  symptomGridTextSelected: {
     color: COLORS.white,
   },
-
+  customSymptomRow: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.lg,
+    gap: SPACING.sm,
+    alignItems: 'center',
+  },
+  customSymptomInput: {
+    flex: 1,
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    fontSize: 14,
+    color: COLORS.text,
+  },
+  customSymptomAdd: {
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalDoneButton: {
+    backgroundColor: COLORS.primary,
+    marginHorizontal: SPACING.xl,
+    borderRadius: RADIUS.lg,
+    paddingVertical: 14,
+    alignItems: 'center',
+    ...SHADOWS.md,
+  },
+  modalDoneButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.white,
+  },
 });

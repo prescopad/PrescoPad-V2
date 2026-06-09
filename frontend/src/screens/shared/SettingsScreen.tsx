@@ -80,6 +80,8 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps): Rea
     );
   };
 
+  const isDoctor = user?.role === 'doctor';
+
   const menuItems: MenuItem[] = [
     {
       icon: 'business-outline',
@@ -103,6 +105,22 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps): Rea
       onPress: () => navigation.navigate('ConnectionSettings'),
       showArrow: true,
     },
+    ...(isDoctor ? [
+      {
+        icon: 'wallet-outline' as keyof typeof Ionicons.glyphMap,
+        label: t('nav.wallet'),
+        subtitle: 'Manage wallet balance and recharge',
+        onPress: () => navigation.navigate('WalletMain'),
+        showArrow: true,
+      },
+      {
+        icon: 'bar-chart-outline' as keyof typeof Ionicons.glyphMap,
+        label: t('nav.analytics'),
+        subtitle: 'View prescription analytics and revenue',
+        onPress: () => navigation.navigate('AnalyticsMain'),
+        showArrow: true,
+      },
+    ] : []),
     {
       icon: 'language-outline',
       label: t('settings.language'),

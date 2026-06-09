@@ -93,7 +93,7 @@ export default function PatientDetailScreen(): React.JSX.Element {
   };
 
   const handleEditPatient = () => {
-    navigation.navigate('AddPatientForm');
+    navigation.navigate('EditPatient', { patientId });
   };
 
   const formatDate = (dateStr: string): string => {

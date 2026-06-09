@@ -11,6 +11,8 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  SafeAreaView,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -29,6 +31,7 @@ type NavigationProp = NativeStackNavigationProp<AssistantStackParamList>;
 export default function AddPatientScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
+  const { width } = useWindowDimensions();
   const GENDER_OPTIONS: { label: string; value: Gender }[] = [
     { label: t('patient.male'), value: Gender.MALE },
     { label: t('patient.female'), value: Gender.FEMALE },
@@ -89,6 +92,20 @@ export default function AddPatientScreen(): React.JSX.Element {
     return Object.keys(newErrors).length === 0;
   };
 
+  const resetForm = () => {
+    setForm({
+      name: '',
+      age: '',
+      gender: Gender.MALE,
+      weight: '',
+      phone: '',
+      address: '',
+      bloodGroup: '',
+      allergies: '',
+    });
+    setErrors({});
+  };
+
   const handleSubmit = async () => {
     if (!validate()) return;
     if (!user) return;
@@ -96,6 +113,8 @@ export default function AddPatientScreen(): React.JSX.Element {
     setIsSubmitting(true);
     try {
       const patient = await createPatient(form);
+      // Clear form immediately after successful registration
+      resetForm();
 
       Alert.alert(
         'Patient Registered',
@@ -104,17 +123,14 @@ export default function AddPatientScreen(): React.JSX.Element {
           {
             text: t('common.no'),
             style: 'cancel',
-            onPress: () => navigation.goBack(),
           },
           {
             text: 'Yes, Add to Queue',
             onPress: async () => {
               try {
                 await addToQueue(patient.id, user.id);
-                navigation.goBack();
               } catch {
                 Alert.alert(t('common.error'), 'Patient registered but failed to add to queue.');
-                navigation.goBack();
               }
             },
           },
@@ -130,9 +146,11 @@ export default function AddPatientScreen(): React.JSX.Element {
   };
 
   return (
+    <SafeAreaView style={styles.safeArea}>
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 80}
     >
       <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
 
@@ -348,10 +366,15 @@ export default function AddPatientScreen(): React.JSX.Element {
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
