@@ -505,8 +505,11 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
           transparent
           onRequestClose={() => setShowSymptomsModal(false)}
         >
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalSheet, { maxHeight: '85%' }]}>
+          <KeyboardAvoidingView
+            style={styles.modalOverlay}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            <View style={styles.modalSheet}>
               {/* Modal Header */}
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Select Symptoms</Text>
@@ -525,7 +528,7 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
               )}
 
               <ScrollView
-                style={{ flex: 1 }}
+                style={styles.modalScroll}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
               >
@@ -580,7 +583,7 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
                 <Text style={styles.modalDoneButtonText}>Done ({selectedSymptoms.length})</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -860,6 +863,10 @@ const styles = StyleSheet.create({
     borderTopRightRadius: RADIUS.xl,
     paddingTop: SPACING.lg,
     paddingBottom: SPACING.xxxl,
+    maxHeight: '88%',
+  },
+  modalScroll: {
+    flexGrow: 0,
   },
   modalHeader: {
     flexDirection: 'row',

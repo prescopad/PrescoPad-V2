@@ -44,6 +44,12 @@ class CompleteRegistrationRequest(BaseModel):
     city: Optional[str] = None
     clinic_name: Optional[str] = None
     clinicName: Optional[str] = None
+    clinic_address: Optional[str] = None
+    clinicAddress: Optional[str] = None
+    clinic_phone: Optional[str] = None
+    clinicPhone: Optional[str] = None
+    clinic_email: Optional[str] = None
+    clinicEmail: Optional[str] = None
     selected_clinic_id: Optional[str] = None
     selectedClinicId: Optional[str] = None
 
@@ -57,6 +63,10 @@ class CompleteRegistrationRequest(BaseModel):
             "experience_years": self.experience_years or self.experienceYears,
             "address": self.address,
             "city": self.city,
+            "clinic_name": self.clinic_name or self.clinicName,
+            "clinic_address": self.clinic_address or self.clinicAddress,
+            "clinic_phone": self.clinic_phone or self.clinicPhone,
+            "clinic_email": self.clinic_email or self.clinicEmail,
         }
 
 

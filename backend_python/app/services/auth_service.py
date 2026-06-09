@@ -240,6 +240,23 @@ async def complete_registration(user_id: str, role: str, data: dict) -> dict:
         update["reg_number"] = data.get("reg_number")
         if data.get("password"):
             update["password_hash"] = hash_password(data["password"])
+
+        # Update clinic details if provided
+        clinic_update: dict = {}
+        if data.get("clinic_name"):
+            clinic_update["name"] = data["clinic_name"]
+        if data.get("clinic_address"):
+            clinic_update["address"] = data["clinic_address"]
+        if data.get("clinic_phone"):
+            clinic_update["phone"] = data["clinic_phone"]
+        if data.get("clinic_email"):
+            clinic_update["email"] = data["clinic_email"]
+        if clinic_update and user.get("clinic_id"):
+            clinic_update["updated_at"] = datetime.now(timezone.utc)
+            await db.clinics.update_one(
+                {"_id": ObjectId(user["clinic_id"])},
+                {"$set": clinic_update},
+            )
     else:
         update["specialty"] = data.get("qualification")
         if data.get("password"):

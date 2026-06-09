@@ -73,6 +73,9 @@ export async function completeRegistration(data: {
   specialty?: string;
   regNumber?: string;
   clinicName?: string;
+  clinicAddress?: string;
+  clinicPhone?: string;
+  clinicEmail?: string;
   qualification?: string;
   experienceYears?: number;
   address?: string;

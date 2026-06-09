@@ -398,7 +398,7 @@ export default function AssistantDashboard(): React.JSX.Element {
               style={styles.consultOption}
               onPress={() => {
                 setShowConsultTypeModal(false);
-                navigation.navigate('AddPatientForm');
+                navigation.getParent()?.navigate('AddPatient');
               }}
               activeOpacity={0.7}
             >

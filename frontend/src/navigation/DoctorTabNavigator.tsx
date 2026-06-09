@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
@@ -146,7 +147,18 @@ export default function DoctorTabNavigator(): React.JSX.Element {
         },
       })}
     >
-      <Tab.Screen name="DoctorQueue" component={DoctorQueueStack} options={{ tabBarLabel: t('nav.queue') }} />
+      <Tab.Screen
+        name="DoctorQueue"
+        component={DoctorQueueStack}
+        options={({ route }) => {
+          const focused = getFocusedRouteNameFromRoute(route);
+          const hideTabBarScreens = ['Consult', 'MedicinePicker', 'LabTestPicker', 'PrescriptionPreview', 'RxSuccess', 'PatientHistory', 'EditPatient'];
+          const tabBarStyle = hideTabBarScreens.includes(focused ?? '')
+            ? { display: 'none' as const }
+            : { backgroundColor: COLORS.white, borderTopColor: COLORS.border, height: 60, paddingBottom: 8, paddingTop: 4 };
+          return { tabBarLabel: t('nav.queue'), tabBarStyle };
+        }}
+      />
 
       {/* Every doctor can add/manage patients directly, regardless of whether
           they have assistants. */}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, StatusBar,
   KeyboardAvoidingView, Platform, Alert, ActivityIndicator, ScrollView,
+  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -27,6 +28,9 @@ export default function RegistrationScreen({ route }: Props): React.JSX.Element 
   const [specialty, setSpecialty] = useState('');
   const [regNumber, setRegNumber] = useState('');
   const [clinicName, setClinicName] = useState('');
+  const [clinicAddress, setClinicAddress] = useState('');
+  const [clinicPhone, setClinicPhone] = useState('');
+  const [clinicEmail, setClinicEmail] = useState('');
 
   // Assistant fields
   const [qualification, setQualification] = useState('');
@@ -47,6 +51,9 @@ export default function RegistrationScreen({ route }: Props): React.JSX.Element 
         if (specialty.trim()) data.specialty = specialty.trim();
         if (regNumber.trim()) data.regNumber = regNumber.trim();
         data.clinicName = clinicName.trim();
+        if (clinicAddress.trim()) data.clinicAddress = clinicAddress.trim();
+        if (clinicPhone.trim()) data.clinicPhone = clinicPhone.trim();
+        if (clinicEmail.trim()) data.clinicEmail = clinicEmail.trim();
       } else {
         if (qualification.trim()) data.qualification = qualification.trim();
         if (experienceYears.trim()) data.experienceYears = parseInt(experienceYears) || 0;
@@ -65,147 +72,207 @@ export default function RegistrationScreen({ route }: Props): React.JSX.Element 
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 80}
+      >
+        <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Ionicons
-            name={isDoctor ? 'medkit' : 'people'}
-            size={48}
-            color={COLORS.primary}
-          />
-          <Text style={styles.title}>{t('auth.completeProfile')}</Text>
-          <Text style={styles.subtitle}>
-            {isDoctor
-              ? t('auth.doctorProfileHint')
-              : t('auth.assistantProfileHint')}
-          </Text>
-        </View>
-
-        <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>{t('auth.fullNameRequired')}</Text>
-            <TextInput
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-              placeholder={isDoctor ? t('auth.doctorNamePlaceholder') : t('auth.assistantNamePlaceholder')}
-              placeholderTextColor={COLORS.textLight}
-              autoFocus
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.header}>
+            <Ionicons
+              name={isDoctor ? 'medkit' : 'people'}
+              size={48}
+              color={COLORS.primary}
             />
+            <Text style={styles.title}>{t('auth.completeProfile')}</Text>
+            <Text style={styles.subtitle}>
+              {isDoctor
+                ? t('auth.doctorProfileHint')
+                : t('auth.assistantProfileHint')}
+            </Text>
           </View>
 
-          {isDoctor ? (
-            <>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>{t('auth.specialty')}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={specialty}
-                  onChangeText={setSpecialty}
-                  placeholder={t('auth.specialtyPlaceholder')}
-                  placeholderTextColor={COLORS.textLight}
-                />
-              </View>
+          <View style={styles.form}>
+            {/* Full Name */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>{t('auth.fullNameRequired')}</Text>
+              <TextInput
+                style={styles.input}
+                value={name}
+                onChangeText={setName}
+                placeholder={isDoctor ? t('auth.doctorNamePlaceholder') : t('auth.assistantNamePlaceholder')}
+                placeholderTextColor={COLORS.textLight}
+                autoFocus
+              />
+            </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>{t('auth.regNumber')}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={regNumber}
-                  onChangeText={setRegNumber}
-                  placeholder={t('auth.regNumberPlaceholder')}
-                  placeholderTextColor={COLORS.textLight}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>{t('auth.clinicNameRequired')}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={clinicName}
-                  onChangeText={setClinicName}
-                  placeholder={t('auth.clinicNamePlaceholder')}
-                  placeholderTextColor={COLORS.textLight}
-                />
-              </View>
-            </>
-          ) : (
-            <>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>{t('auth.qualification')}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={qualification}
-                  onChangeText={setQualification}
-                  placeholder={t('auth.qualificationPlaceholder')}
-                  placeholderTextColor={COLORS.textLight}
-                />
-              </View>
-
-              <View style={styles.row}>
-                <View style={[styles.inputGroup, styles.rowHalf]}>
-                  <Text style={styles.label}>{t('auth.experienceYears')}</Text>
+            {isDoctor ? (
+              <>
+                {/* — Doctor personal details — */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>{t('auth.specialty')}</Text>
                   <TextInput
                     style={styles.input}
-                    value={experienceYears}
-                    onChangeText={setExperienceYears}
-                    placeholder={t('auth.experiencePlaceholder')}
-                    placeholderTextColor={COLORS.textLight}
-                    keyboardType="numeric"
-                    maxLength={2}
-                  />
-                </View>
-                <View style={[styles.inputGroup, styles.rowHalf]}>
-                  <Text style={styles.label}>{t('auth.city')}</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={city}
-                    onChangeText={setCity}
-                    placeholder={t('auth.cityPlaceholder')}
+                    value={specialty}
+                    onChangeText={setSpecialty}
+                    placeholder={t('auth.specialtyPlaceholder')}
                     placeholderTextColor={COLORS.textLight}
                   />
                 </View>
-              </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>{t('auth.address')}</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={address}
-                  onChangeText={setAddress}
-                  placeholder={t('auth.addressPlaceholder')}
-                  placeholderTextColor={COLORS.textLight}
-                  multiline
-                  numberOfLines={2}
-                />
-              </View>
-            </>
-          )}
-        </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>{t('auth.regNumber')}</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={regNumber}
+                    onChangeText={setRegNumber}
+                    placeholder={t('auth.regNumberPlaceholder')}
+                    placeholderTextColor={COLORS.textLight}
+                  />
+                </View>
 
-        <TouchableOpacity
-          style={[styles.button, !canSubmit && styles.buttonDisabled]}
-          onPress={handleSubmit}
-          disabled={!canSubmit || isLoading}
-          activeOpacity={0.8}
-        >
-          {isLoading ? (
-            <ActivityIndicator color={COLORS.white} />
-          ) : (
-            <Text style={styles.buttonText}>{t('auth.getStarted')}</Text>
-          )}
-        </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+                {/* — Clinic details — */}
+                <View style={styles.dividerRow}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerLabel}>Clinic Details</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>{t('auth.clinicNameRequired')}</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={clinicName}
+                    onChangeText={setClinicName}
+                    placeholder={t('auth.clinicNamePlaceholder')}
+                    placeholderTextColor={COLORS.textLight}
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Clinic Address</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={clinicAddress}
+                    onChangeText={setClinicAddress}
+                    placeholder="e.g. 12, MG Road, Pune"
+                    placeholderTextColor={COLORS.textLight}
+                    multiline
+                    numberOfLines={2}
+                  />
+                </View>
+
+                <View style={styles.row}>
+                  <View style={[styles.inputGroup, styles.rowHalf]}>
+                    <Text style={styles.label}>Clinic Phone</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={clinicPhone}
+                      onChangeText={setClinicPhone}
+                      placeholder="Phone number"
+                      placeholderTextColor={COLORS.textLight}
+                      keyboardType="phone-pad"
+                      maxLength={15}
+                    />
+                  </View>
+                  <View style={[styles.inputGroup, styles.rowHalf]}>
+                    <Text style={styles.label}>Clinic Email</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={clinicEmail}
+                      onChangeText={setClinicEmail}
+                      placeholder="Email"
+                      placeholderTextColor={COLORS.textLight}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                  </View>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>{t('auth.qualification')}</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={qualification}
+                    onChangeText={setQualification}
+                    placeholder={t('auth.qualificationPlaceholder')}
+                    placeholderTextColor={COLORS.textLight}
+                  />
+                </View>
+
+                <View style={styles.row}>
+                  <View style={[styles.inputGroup, styles.rowHalf]}>
+                    <Text style={styles.label}>{t('auth.experienceYears')}</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={experienceYears}
+                      onChangeText={setExperienceYears}
+                      placeholder={t('auth.experiencePlaceholder')}
+                      placeholderTextColor={COLORS.textLight}
+                      keyboardType="numeric"
+                      maxLength={2}
+                    />
+                  </View>
+                  <View style={[styles.inputGroup, styles.rowHalf]}>
+                    <Text style={styles.label}>{t('auth.city')}</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={city}
+                      onChangeText={setCity}
+                      placeholder={t('auth.cityPlaceholder')}
+                      placeholderTextColor={COLORS.textLight}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>{t('auth.address')}</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={address}
+                    onChangeText={setAddress}
+                    placeholder={t('auth.addressPlaceholder')}
+                    placeholderTextColor={COLORS.textLight}
+                    multiline
+                    numberOfLines={2}
+                  />
+                </View>
+              </>
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={[styles.button, !canSubmit && styles.buttonDisabled]}
+            onPress={handleSubmit}
+            disabled={!canSubmit || isLoading}
+            activeOpacity={0.8}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={COLORS.white} />
+            ) : (
+              <Text style={styles.buttonText}>{t('auth.getStarted')}</Text>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.white,
@@ -213,7 +280,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: SPACING.xxl,
-    paddingTop: 60,
+    paddingTop: SPACING.xxl,
     paddingBottom: SPACING.xxxl,
   },
   header: {
@@ -266,89 +333,23 @@ const styles = StyleSheet.create({
   rowHalf: {
     flex: 1,
   },
-  // Clinic picker
-  clinicSection: {
-    marginTop: SPACING.sm,
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.xl,
+    gap: SPACING.md,
   },
-  sectionTitle: {
-    fontSize: 15,
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.border,
+  },
+  dividerLabel: {
+    fontSize: 13,
     fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
-  },
-  sectionSubtitle: {
-    fontSize: 13,
     color: COLORS.textMuted,
-    marginBottom: SPACING.lg,
-    lineHeight: 18,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.lg,
-    paddingHorizontal: SPACING.md,
-    backgroundColor: COLORS.surfaceSecondary,
-    marginBottom: SPACING.md,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: COLORS.text,
-    paddingVertical: 12,
-    paddingHorizontal: SPACING.sm,
-  },
-  clinicList: {
-    maxHeight: 300,
-  },
-  clinicLoader: {
-    marginVertical: SPACING.xl,
-  },
-  noClinics: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    paddingVertical: SPACING.xl,
-    fontStyle: 'italic',
-  },
-  clinicCard: {
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
-    backgroundColor: COLORS.white,
-  },
-  clinicCardSelected: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primarySurface,
-  },
-  clinicCardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  clinicInfo: {
-    flex: 1,
-    marginLeft: SPACING.md,
-  },
-  clinicName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  clinicNameSelected: {
-    color: COLORS.primary,
-  },
-  clinicDoctor: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  clinicAddress: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   button: {
     backgroundColor: COLORS.primary,

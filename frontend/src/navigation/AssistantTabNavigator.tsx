@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../constants/theme';
@@ -84,7 +85,14 @@ export default function AssistantTabNavigator(): React.JSX.Element {
       <Tab.Screen
         name="AssistantQueue"
         component={AssistantQueueStack}
-        options={{ tabBarLabel: t('nav.queue') }}
+        options={({ route }) => {
+          const focused = getFocusedRouteNameFromRoute(route);
+          const hideTabBarScreens = ['PatientDetail', 'PrescriptionView', 'EditPatient'];
+          const tabBarStyle = hideTabBarScreens.includes(focused ?? '')
+            ? { display: 'none' as const }
+            : { backgroundColor: COLORS.white, borderTopColor: COLORS.border, height: 60, paddingBottom: 8, paddingTop: 4 };
+          return { tabBarLabel: t('nav.queue'), tabBarStyle };
+        }}
       />
       <Tab.Screen
         name="AddPatient"
