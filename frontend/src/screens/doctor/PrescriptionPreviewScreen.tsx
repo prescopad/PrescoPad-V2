@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,9 @@ import {
   Modal,
   SafeAreaView,
   useWindowDimensions,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
@@ -45,14 +48,16 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
   const [isLoading, setIsLoading] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
 
-  // Payment modal state
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showQRModal, setShowQRModal] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod | null>(null);
-
-  // Sign mode modal
+  // Sign mode modal (shown BEFORE issuing)
   const [showSignModeModal, setShowSignModeModal] = useState(false);
   const [sigModalVisible, setSigModalVisible] = useState(false);
+
+  // Payment modal state (shown AFTER issuing)
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [cashAmount, setCashAmount] = useState('');
+  // Issued prescription stored to pass to success screen after payment
+  const issuedRxRef = useRef<typeof rx>(null);
 
   useEffect(() => {
     if (prescriptionId) {
@@ -70,6 +75,38 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
     });
   };
 
+  // Step 1: Doctor taps "Sign & Issue" → check wallet → show sign mode
+  const handleSignAndIssue = async () => {
+    if (!rx) return;
+
+    await loadBalance();
+    const affordable = canAfford();
+    if (!affordable) {
+      Alert.alert(
+        'Insufficient Balance',
+        `You need ${APP_CONFIG.wallet.currencySymbol}${APP_CONFIG.wallet.costPerPrescription} to issue a prescription. Current balance: ${APP_CONFIG.wallet.currencySymbol}${balance}`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Recharge', onPress: () => navigation.getParent()?.navigate('DoctorWallet') },
+        ],
+      );
+      return;
+    }
+
+    // Show sign mode selection — payment comes AFTER issuing
+    setShowSignModeModal(true);
+  };
+
+  const handleSignModeSelect = (mode: 'saved' | 'draw') => {
+    setShowSignModeModal(false);
+    if (mode === 'saved' && doctorProfile?.signatureBase64) {
+      signAndIssueWithSignature(doctorProfile.signatureBase64, false);
+    } else {
+      setSigModalVisible(true);
+    }
+  };
+
+  // Step 2: Sign and issue the prescription, then show payment modal
   const signAndIssueWithSignature = async (signature: string, save: boolean) => {
     if (!rx) return;
     setIsSigning(true);
@@ -90,8 +127,13 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
 
       await loadBalance();
 
-      const updatedRx = usePrescriptionStore.getState().currentPrescription;
-      navigation.replace('RxSuccess', { prescription: updatedRx ?? rx });
+      // Store the issued Rx so we can navigate after payment is recorded
+      issuedRxRef.current = usePrescriptionStore.getState().currentPrescription ?? rx;
+
+      // Step 3: Now ask for payment method
+      setCashAmount('');
+      setSelectedPayment(null);
+      setShowPaymentModal(true);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Failed to issue prescription';
       Alert.alert('Error', msg);
@@ -100,52 +142,27 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
     }
   };
 
-  const handleSignAndIssue = async () => {
-    if (!rx) return;
-
-    await loadBalance();
-    const affordable = canAfford();
-    if (!affordable) {
-      Alert.alert(
-        'Insufficient Balance',
-        `You need ${APP_CONFIG.wallet.currencySymbol}${APP_CONFIG.wallet.costPerPrescription} to issue a prescription. Current balance: ${APP_CONFIG.wallet.currencySymbol}${balance}`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Recharge', onPress: () => navigation.getParent()?.navigate('DoctorWallet') },
-        ],
-      );
-      return;
-    }
-
-    // Step 1: Show payment modal first
-    setShowPaymentModal(true);
+  // Step 3a: Cash selected — doctor enters amount received, then proceed
+  const handleCashDone = () => {
+    setShowPaymentModal(false);
+    navigation.replace('RxSuccess', { prescription: issuedRxRef.current ?? rx! });
   };
 
+  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod | null>(null);
+
+  // Step 3b: Online selected — show QR, then proceed
   const handlePaymentSelected = (method: PaymentMethod) => {
     setSelectedPayment(method);
-    setShowPaymentModal(false);
-
     if (method === 'online') {
-      // Show QR modal
+      setShowPaymentModal(false);
       setShowQRModal(true);
-    } else {
-      // Cash — go straight to signature
-      setShowSignModeModal(true);
     }
+    // cash: stay in modal to show amount input
   };
 
   const handleQRDone = () => {
     setShowQRModal(false);
-    setShowSignModeModal(true);
-  };
-
-  const handleSignModeSelect = (mode: 'saved' | 'draw' | 'new') => {
-    setShowSignModeModal(false);
-    if (mode === 'saved' && doctorProfile?.signatureBase64) {
-      signAndIssueWithSignature(doctorProfile.signatureBase64, false);
-    } else {
-      setSigModalVisible(true);
-    }
+    navigation.replace('RxSuccess', { prescription: issuedRxRef.current ?? rx! });
   };
 
   if (!rx) {
@@ -376,18 +393,25 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
         animationType="slide"
         onRequestClose={() => setShowPaymentModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Payment Method</Text>
-              <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
+              <Text style={styles.modalTitle}>Record Payment</Text>
+              <TouchableOpacity onPress={() => {
+                setShowPaymentModal(false);
+                navigation.replace('RxSuccess', { prescription: issuedRxRef.current ?? rx! });
+              }}>
                 <Ionicons name="close" size={24} color={COLORS.text} />
               </TouchableOpacity>
             </View>
-            <Text style={styles.modalSubtitle}>Choose how the patient will pay for this consultation</Text>
+            <Text style={styles.modalSubtitle}>Prescription issued successfully. How did the patient pay?</Text>
 
+            {/* Payment options */}
             <TouchableOpacity
-              style={styles.paymentOption}
+              style={[styles.paymentOption, selectedPayment === 'cash' && styles.paymentOptionSelected]}
               onPress={() => handlePaymentSelected('cash')}
               activeOpacity={0.7}
             >
@@ -398,11 +422,38 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
                 <Text style={styles.paymentTitle}>Cash</Text>
                 <Text style={styles.paymentSubtitle}>Patient pays in cash</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+              {selectedPayment === 'cash'
+                ? <Ionicons name="checkmark-circle" size={22} color={COLORS.success} />
+                : <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+              }
             </TouchableOpacity>
 
+            {/* Cash amount input — shown when Cash is selected */}
+            {selectedPayment === 'cash' && (
+              <View style={styles.cashAmountContainer}>
+                <Text style={styles.cashAmountLabel}>Amount Received (₹)</Text>
+                <TextInput
+                  style={styles.cashAmountInput}
+                  placeholder="Enter amount e.g. 500"
+                  placeholderTextColor={COLORS.textLight}
+                  value={cashAmount}
+                  onChangeText={setCashAmount}
+                  keyboardType="numeric"
+                  autoFocus
+                />
+                <TouchableOpacity
+                  style={styles.cashConfirmButton}
+                  onPress={handleCashDone}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="checkmark-circle-outline" size={20} color={COLORS.white} />
+                  <Text style={styles.cashConfirmText}>Confirm & Continue</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             <TouchableOpacity
-              style={styles.paymentOption}
+              style={[styles.paymentOption, selectedPayment === 'online' && styles.paymentOptionSelected]}
               onPress={() => handlePaymentSelected('online')}
               activeOpacity={0.7}
             >
@@ -416,7 +467,7 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
               <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* QR Code Modal */}
@@ -915,6 +966,54 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     marginBottom: SPACING.md,
     gap: SPACING.md,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  paymentOptionSelected: {
+    borderColor: COLORS.success,
+    backgroundColor: COLORS.successLight,
+  },
+  cashAmountContainer: {
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.success,
+  },
+  cashAmountLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  cashAmountInput: {
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 12,
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: SPACING.md,
+  },
+  cashConfirmButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.success,
+    borderRadius: RADIUS.lg,
+    paddingVertical: 14,
+    gap: SPACING.sm,
+  },
+  cashConfirmText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.white,
   },
   paymentIconCircle: {
     width: 52,
