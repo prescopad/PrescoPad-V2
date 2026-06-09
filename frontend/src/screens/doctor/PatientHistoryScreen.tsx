@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar,
-  ActivityIndicator, FlatList,
+  ActivityIndicator, FlatList, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -36,7 +36,7 @@ export default function PatientHistoryScreen({ navigation, route }: Props): Reac
       setPatient(p);
       setPrescriptions(rxList);
     } catch {
-      // silent
+      Alert.alert('Error', 'Failed to load patient history. Please try again.');
     } finally {
       setIsLoading(false);
     }
