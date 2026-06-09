@@ -10,6 +10,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { completeRegistration } from '../../services/authService';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useClinicStore } from '../../store/useClinicStore';
 import { AuthStackParamList } from '../../types/navigation.types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Registration'>;
@@ -19,6 +20,7 @@ export default function RegistrationScreen({ route }: Props): React.JSX.Element 
   const { role } = route.params;
   const isDoctor = role === 'doctor';
   const setUser = useAuthStore((s) => s.setUser);
+  const { loadClinic, loadDoctorProfile } = useClinicStore();
 
   // Common
   const [name, setName] = useState('');
@@ -63,6 +65,8 @@ export default function RegistrationScreen({ route }: Props): React.JSX.Element 
 
       const response = await completeRegistration(data as Parameters<typeof completeRegistration>[0]);
       await setUser(response.user, response.accessToken, response.refreshToken);
+      // Eagerly load clinic so the dashboard shows the correct clinic name immediately
+      await Promise.all([loadClinic(), loadDoctorProfile()]);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : t('auth.registrationFailed');
       Alert.alert(t('common.error'), msg);

@@ -76,11 +76,14 @@ export default function AnalyticsScreen(): React.JSX.Element {
     </View>
   );
 
+  const periodLabel = period === 'today' ? 'Today' : period === 'week' ? 'This Week' : 'This Month';
+
   if (isLoading && !analytics) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Analytics & Reports</Text>
+          <Text style={styles.headerTitle}>Analytics</Text>
+          <Text style={styles.headerSubtitle}>{periodLabel}</Text>
         </View>
         {renderPeriodTabs()}
         {renderLoadingState()}
@@ -92,7 +95,8 @@ export default function AnalyticsScreen(): React.JSX.Element {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Analytics & Reports</Text>
+          <Text style={styles.headerTitle}>Analytics</Text>
+          <Text style={styles.headerSubtitle}>{periodLabel}</Text>
         </View>
         {renderPeriodTabs()}
         {renderEmptyState()}
@@ -103,7 +107,8 @@ export default function AnalyticsScreen(): React.JSX.Element {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Analytics & Reports</Text>
+        <Text style={styles.headerTitle}>Analytics</Text>
+        <Text style={styles.headerSubtitle}>{periodLabel}</Text>
       </View>
 
       {renderPeriodTabs()}
@@ -263,6 +268,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     ...FONTS.heading,
     fontSize: 22,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    marginTop: 2,
   },
   periodTabs: {
     flexDirection: 'row',

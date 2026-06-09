@@ -1,8 +1,26 @@
 import { create } from 'zustand';
+import * as FileSystem from 'expo-file-system';
 import SecureStore from '../utils/secureStore';
 import { Clinic, DoctorProfile } from '../types/clinic.types';
 import api from '../services/api';
 import { useAuthStore } from './useAuthStore';
+
+const SIG_FILE_URI = `${FileSystem.documentDirectory}doctor_signature.svg`;
+
+async function writeSigFile(content: string): Promise<string> {
+  await FileSystem.writeAsStringAsync(SIG_FILE_URI, content, { encoding: FileSystem.EncodingType.UTF8 });
+  return SIG_FILE_URI;
+}
+
+async function readSigFile(uri: string): Promise<string | null> {
+  try {
+    const info = await FileSystem.getInfoAsync(uri);
+    if (!info.exists) return null;
+    return await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.UTF8 });
+  } catch {
+    return null;
+  }
+}
 
 interface ClinicStore {
   clinic: Clinic | null;
@@ -53,7 +71,15 @@ export const useClinicStore = create<ClinicStore>((set, get) => ({
       if (authUser.role === 'doctor') {
         const res = await api.get('/auth/me');
         const u = res.data.user;
-        const signatureBase64 = await SecureStore.getItemAsync('doctorSignature');
+        const localRef = await SecureStore.getItemAsync('doctorSignature');
+        // localRef may be a file:// URI (new) or a raw SVG path (legacy)
+        let localSig: string | null = null;
+        if (localRef) {
+          localSig = localRef.startsWith('file://') ? await readSigFile(localRef) : localRef;
+        }
+        // Fall back to cloud-stored signature if local cache is missing
+        const cloudSig = u?.signature_url || u?.signatureUrl || null;
+        const signatureBase64 = localSig || cloudSig;
         if (u) {
           set({
             doctorProfile: {
@@ -120,12 +146,16 @@ export const useClinicStore = create<ClinicStore>((set, get) => ({
       await api.put('/auth/profile', payload);
     }
 
-    // Save signature locally (it's a large base64 blob, keep on device)
+    // Save signature: write to filesystem (no size limit), store URI in SecureStore, sync to cloud
     if (data.signatureBase64 !== undefined) {
       if (data.signatureBase64) {
-        await SecureStore.setItemAsync('doctorSignature', data.signatureBase64);
+        const fileUri = await writeSigFile(data.signatureBase64);
+        await SecureStore.setItemAsync('doctorSignature', fileUri);
+        await api.put('/auth/profile', { signatureUrl: data.signatureBase64 });
       } else {
         await SecureStore.deleteItemAsync('doctorSignature');
+        try { await FileSystem.deleteAsync(SIG_FILE_URI, { idempotent: true }); } catch {}
+        await api.put('/auth/profile', { signatureUrl: '' });
       }
     }
 
@@ -135,7 +165,9 @@ export const useClinicStore = create<ClinicStore>((set, get) => ({
   saveSignature: async (signatureBase64: string) => {
     const current = get().doctorProfile;
     if (!current) return;
-    await SecureStore.setItemAsync('doctorSignature', signatureBase64);
+    const fileUri = await writeSigFile(signatureBase64);
+    await SecureStore.setItemAsync('doctorSignature', fileUri);
+    await api.put('/auth/profile', { signatureUrl: signatureBase64 });
     set({ doctorProfile: { ...current, signatureBase64 } });
   },
 

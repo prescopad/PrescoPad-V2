@@ -258,6 +258,7 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 80}
     >
+    <View style={styles.innerContainer}>
       {/* Search Bar */}
       <View style={[styles.searchBar, { marginHorizontal: width < 360 ? SPACING.md : SPACING.lg }]}>
         <Ionicons name="search" size={20} color={COLORS.textMuted} />
@@ -417,27 +418,29 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
             }
           />
 
-          {/* Bottom bar with Add button */}
-          {selectedCount > 0 && (
-            <View style={styles.bottomBar}>
-              <View style={styles.selectedInfo}>
-                <Text style={styles.selectedCount}>
-                  {selectedCount} test{selectedCount !== 1 ? 's' : ''} selected
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.addTestsButton}
-                onPress={handleAddTests}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="add-circle" size={20} color={COLORS.white} />
-                <Text style={styles.addTestsButtonText}>Add Tests</Text>
-              </TouchableOpacity>
-            </View>
-          )}
         </>
       )}
+    </View>
     </KeyboardAvoidingView>
+
+    {/* Bottom bar lives outside KeyboardAvoidingView so keyboard never covers it */}
+    {selectedCount > 0 && (
+      <View style={styles.bottomBar}>
+        <View style={styles.selectedInfo}>
+          <Text style={styles.selectedCount}>
+            {selectedCount} test{selectedCount !== 1 ? 's' : ''} selected
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={styles.addTestsButton}
+          onPress={handleAddTests}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add-circle" size={20} color={COLORS.white} />
+          <Text style={styles.addTestsButtonText}>Add Tests</Text>
+        </TouchableOpacity>
+      </View>
+    )}
     </SafeAreaView>
   );
 }
@@ -446,6 +449,9 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  innerContainer: {
+    flex: 1,
   },
   container: {
     flex: 1,

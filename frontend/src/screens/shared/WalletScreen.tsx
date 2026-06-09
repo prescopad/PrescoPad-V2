@@ -209,6 +209,9 @@ export default function WalletScreen({ navigation }: WalletScreenProps): React.J
           >
             <Ionicons name="add-circle" size={20} color={COLORS.white} />
             <Text style={styles.rechargeToggleText}>{t('wallet.recharge')}</Text>
+            <View style={styles.comingSoonBadge}>
+              <Text style={styles.comingSoonText}>Coming Soon</Text>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -436,6 +439,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: COLORS.white,
+    flex: 1,
+  },
+  comingSoonBadge: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.4)',
+  },
+  comingSoonText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.white,
+    letterSpacing: 0.3,
   },
 
   // Recharge Section

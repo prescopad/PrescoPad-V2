@@ -42,6 +42,7 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
   const [activeTab, setActiveTab] = useState<'all' | 'waiting' | 'in_progress' | 'completed'>('all');
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [showConsultTypeModal, setShowConsultTypeModal] = useState(false);
+  const [pendingQueueItem, setPendingQueueItem] = useState<QueueItem | null>(null);
 
   const loadData = useCallback(async () => {
     const todayOnly = !showAllHistory;
@@ -98,9 +99,19 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
       navigation.navigate('Consult', { queueItem: item, patient: item.patient });
       return;
     }
+    // Show consult type modal for WAITING items
+    setPendingQueueItem(item);
+    setShowConsultTypeModal(true);
+  };
+
+  const handleConsultTypeSelected = async (type: 'new' | 'followup') => {
+    setShowConsultTypeModal(false);
+    const item = pendingQueueItem;
+    setPendingQueueItem(null);
+    if (!item || !item.patient) return;
     try {
       await startConsult(item.id);
-      navigation.navigate('Consult', { queueItem: item, patient: item.patient });
+      navigation.navigate('Consult', { queueItem: item, patient: item.patient, consultType: type });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Failed to start consultation';
       Alert.alert(t('common.error'), msg);
@@ -366,24 +377,24 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
         visible={showConsultTypeModal}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowConsultTypeModal(false)}
+        onRequestClose={() => { setShowConsultTypeModal(false); setPendingQueueItem(null); }}
       >
         <View style={styles.consultModalOverlay}>
           <View style={styles.consultModalSheet}>
             <View style={styles.consultModalHeader}>
-              <Text style={styles.consultModalTitle}>Add Patient</Text>
-              <TouchableOpacity onPress={() => setShowConsultTypeModal(false)}>
+              <Text style={styles.consultModalTitle}>Start Consultation</Text>
+              <TouchableOpacity onPress={() => { setShowConsultTypeModal(false); setPendingQueueItem(null); }}>
                 <Ionicons name="close" size={24} color={COLORS.text} />
               </TouchableOpacity>
             </View>
+            {pendingQueueItem?.patient && (
+              <Text style={styles.consultModalPatient}>{pendingQueueItem.patient.name}</Text>
+            )}
             <Text style={styles.consultModalSubtitle}>Choose the type of visit</Text>
 
             <TouchableOpacity
               style={styles.consultOption}
-              onPress={() => {
-                setShowConsultTypeModal(false);
-                navigation.getParent()?.navigate('DoctorPatients');
-              }}
+              onPress={() => handleConsultTypeSelected('new')}
               activeOpacity={0.7}
             >
               <View style={[styles.consultIconCircle, { backgroundColor: COLORS.successLight }]}>
@@ -391,17 +402,14 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
               </View>
               <View style={styles.consultInfo}>
                 <Text style={styles.consultOptionTitle}>New Consultation</Text>
-                <Text style={styles.consultOptionSubtitle}>Register a new patient</Text>
+                <Text style={styles.consultOptionSubtitle}>First visit or new complaint</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.consultOption}
-              onPress={() => {
-                setShowConsultTypeModal(false);
-                navigation.getParent()?.navigate('DoctorPatients');
-              }}
+              onPress={() => handleConsultTypeSelected('followup')}
               activeOpacity={0.7}
             >
               <View style={[styles.consultIconCircle, { backgroundColor: COLORS.primarySurface }]}>
@@ -409,7 +417,7 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
               </View>
               <View style={styles.consultInfo}>
                 <Text style={styles.consultOptionTitle}>Follow-up</Text>
-                <Text style={styles.consultOptionSubtitle}>Search existing patient</Text>
+                <Text style={styles.consultOptionSubtitle}>Continuing treatment or review</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
             </TouchableOpacity>
@@ -743,6 +751,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: COLORS.text,
+  },
+  consultModalPatient: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: SPACING.xs,
   },
   consultModalSubtitle: {
     fontSize: 13,
