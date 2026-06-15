@@ -287,10 +287,12 @@ async def create_prescription(clinic_id: str, doctor_id: str, data: dict) -> dic
         "patient_age": data.get("patient_age"),
         "patient_gender": data.get("patient_gender"),
         "patient_phone": data.get("patient_phone"),
+        "chief_complaint": data.get("chief_complaint"),
         "diagnosis": data.get("diagnosis"),
         "advice": data.get("advice"),
         "follow_up_date": data.get("follow_up_date"),
         "symptoms": data.get("symptoms", []),
+        "vitals": data.get("vitals"),
         "medicines": medicines,
         "lab_tests": lab_tests,
         "status": "draft",
@@ -485,3 +487,26 @@ async def increment_lab_test_usage(clinic_id: str, test_id: str = None, name: st
 async def delete_custom_lab_test(clinic_id: str, test_id: str):
     db = get_db()
     await db.custom_lab_tests.delete_one({"_id": ObjectId(test_id), "clinic_id": clinic_id})
+
+
+# ─── Prescription Templates ───────────────────────────────────────────────────
+
+async def get_prescription_templates(clinic_id: str) -> list:
+    db = get_db()
+    cursor = db.prescription_templates.find({"clinic_id": clinic_id}).sort("name", 1)
+    return [serialize_doc(t) async for t in cursor]
+
+
+async def save_prescription_template(clinic_id: str, data: dict) -> dict:
+    db = get_db()
+    data["clinic_id"] = clinic_id
+    data["created_at"] = datetime.now(timezone.utc)
+    data["updated_at"] = datetime.now(timezone.utc)
+    result = await db.prescription_templates.insert_one(data)
+    template = await db.prescription_templates.find_one({"_id": result.inserted_id})
+    return serialize_doc(template)
+
+
+async def delete_prescription_template(clinic_id: str, template_id: str):
+    db = get_db()
+    await db.prescription_templates.delete_one({"_id": ObjectId(template_id), "clinic_id": clinic_id})

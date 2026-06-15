@@ -94,6 +94,23 @@ class LabTestItem(BaseModel):
         }
 
 
+class VitalsItem(BaseModel):
+    bp: Optional[str] = None
+    pulse: Optional[str] = None
+    temperature: Optional[str] = None
+    spO2: Optional[str] = None
+    weight: Optional[str] = None
+
+    def normalized(self) -> dict:
+        return {
+            "bp": self.bp,
+            "pulse": self.pulse,
+            "temperature": self.temperature,
+            "spO2": self.spO2,
+            "weight": self.weight,
+        }
+
+
 class PrescriptionRequest(BaseModel):
     patient_id: Optional[str] = None
     patientId: Optional[str] = None
@@ -106,11 +123,14 @@ class PrescriptionRequest(BaseModel):
     patient_phone: Optional[str] = None
     patientPhone: Optional[str] = None
     doctor_id: Optional[str] = None
+    chief_complaint: Optional[str] = None
+    chiefComplaint: Optional[str] = None
     diagnosis: Optional[str] = None
     advice: Optional[str] = None
     follow_up_date: Optional[str] = None
     followUpDate: Optional[str] = None
     symptoms: Optional[List[str]] = []
+    vitals: Optional[VitalsItem] = None
     medicines: Optional[List[MedicineItem]] = []
     lab_tests: Optional[List[LabTestItem]] = []
     labTests: Optional[List[LabTestItem]] = []
@@ -124,10 +144,12 @@ class PrescriptionRequest(BaseModel):
             "patient_age": self.patient_age or self.patientAge,
             "patient_gender": self.patient_gender or self.patientGender,
             "patient_phone": self.patient_phone or self.patientPhone,
+            "chief_complaint": self.chief_complaint or self.chiefComplaint,
             "diagnosis": self.diagnosis,
             "advice": self.advice,
             "follow_up_date": self.follow_up_date or self.followUpDate,
             "symptoms": self.symptoms or [],
+            "vitals": self.vitals.normalized() if self.vitals else None,
             "medicines": [m.normalized() for m in meds],
             "lab_tests": [t.normalized() for t in tests],
         }
@@ -161,3 +183,27 @@ class FinalizePrescriptionRequest(BaseModel):
     pdf_hash: Optional[str] = None
     pdfHash: Optional[str] = None
 
+
+class PrescriptionTemplateRequest(BaseModel):
+    name: str
+    chief_complaint: Optional[str] = None
+    chiefComplaint: Optional[str] = None
+    diagnosis: Optional[str] = None
+    advice: Optional[str] = None
+    symptoms: Optional[List[str]] = []
+    medicines: Optional[List[MedicineItem]] = []
+    lab_tests: Optional[List[LabTestItem]] = []
+    labTests: Optional[List[LabTestItem]] = []
+
+    def normalized(self) -> dict:
+        meds = self.medicines or []
+        tests = self.lab_tests or self.labTests or []
+        return {
+            "name": self.name,
+            "chief_complaint": self.chief_complaint or self.chiefComplaint,
+            "diagnosis": self.diagnosis,
+            "advice": self.advice,
+            "symptoms": self.symptoms or [],
+            "medicines": [m.normalized() for m in meds],
+            "lab_tests": [t.normalized() for t in tests],
+        }

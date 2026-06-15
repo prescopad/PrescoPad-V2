@@ -1,6 +1,6 @@
 import api from './api';
 import { Patient, PatientFormData } from '../types/patient.types';
-import { Prescription, PrescriptionDraft, PrescriptionMedicine, PrescriptionLabTest, PrescriptionStatus } from '../types/prescription.types';
+import { Prescription, PrescriptionDraft, PrescriptionMedicine, PrescriptionLabTest, PrescriptionStatus, PrescriptionTemplate, Vitals } from '../types/prescription.types';
 import { QueueItem, QueueStatus } from '../types/queue.types';
 import { Medicine, LabTest } from '../types/medicine.types';
 import { searchMedicines as searchLocalMedicines, getFrequentMedicines as getLocalFrequentMedicines, searchLabTests as searchLocalLabTests, getFrequentLabTests as getLocalFrequentLabTests, getLabTestsByCategory as getLocalLabTestsByCategory, incrementMedicineUsage as incrementLocalMedicineUsage, incrementLabTestUsage as incrementLocalLabTestUsage } from '../database/queries/medicineQueries';
@@ -67,11 +67,29 @@ function mapPrescription(row: Record<string, unknown>): Prescription {
     advice: (row.advice as string) ?? '',
     followUpDate: (row.follow_up_date as string) ?? null,
     symptoms: (row.symptoms as string[]) ?? [],
+    chiefComplaint: (row.chief_complaint as string) ?? undefined,
+    vitals: (row.vitals as Vitals) ?? undefined,
     pdfPath: null, // PDF is local-only
     pdfHash: (row.pdf_hash as string) ?? null,
     signature: (row.signature as string) ?? null,
     status: row.status as PrescriptionStatus,
     walletDeducted: Boolean(row.wallet_deducted),
+    medicines,
+    labTests,
+    createdAt: row.created_at as string,
+  };
+}
+
+function mapPrescriptionTemplate(row: Record<string, unknown>): PrescriptionTemplate {
+  const medicines = (row.medicines as Record<string, unknown>[] | undefined)?.map(mapPrescriptionMedicine) ?? [];
+  const labTests = (row.lab_tests as Record<string, unknown>[] | undefined)?.map(mapPrescriptionLabTest) ?? [];
+  return {
+    id: row._id as string || row.id as string,
+    name: row.name as string,
+    chiefComplaint: (row.chief_complaint as string) ?? undefined,
+    diagnosis: (row.diagnosis as string) ?? '',
+    advice: (row.advice as string) ?? '',
+    symptoms: (row.symptoms as string[]) ?? [],
     medicines,
     labTests,
     createdAt: row.created_at as string,
@@ -244,18 +262,19 @@ export async function getQueueStatsFiltered(todayOnly?: boolean, date?: string):
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export async function createPrescription(draft: PrescriptionDraft, doctorId: string): Promise<Prescription> {
-  const res = await api.post('/data/prescriptions', {
+  const payload = {
     patient_id: draft.patientId,
     patient_name: draft.patientName,
     patient_age: parseInt(draft.patientAge) || 0,
     patient_gender: draft.patientGender,
     patient_phone: draft.patientPhone,
-    doctor_id: doctorId,
+    chief_complaint: draft.chiefComplaint,
     diagnosis: draft.diagnosis,
     advice: draft.advice,
     follow_up_date: draft.followUpDate || null,
     symptoms: draft.symptoms,
-    medicines: draft.medicines.map(m => ({
+    vitals: draft.vitals,
+    medicines: draft.medicines.map((m) => ({
       medicine_name: m.medicineName,
       type: m.type,
       dosage: m.dosage,
@@ -264,11 +283,15 @@ export async function createPrescription(draft: PrescriptionDraft, doctorId: str
       timing: m.timing,
       notes: m.notes,
     })),
-    lab_tests: draft.labTests.map(t => ({
+    lab_tests: draft.labTests.map((t) => ({
       test_name: t.testName,
       category: t.category,
       notes: t.notes,
     })),
+  };
+  const res = await api.post('/data/prescriptions', {
+    ...payload,
+    doctor_id: doctorId,
   });
   return mapPrescription(res.data.prescription);
 }
@@ -420,4 +443,47 @@ export async function incrementLabTestUsage(name: string, isCustom: boolean): Pr
   if (isCustom) {
     try { await api.put('/data/custom-lab-tests/usage', { name }); } catch { /* ignore */ }
   }
+}
+
+export async function deleteCustomLabTest(id: string): Promise<void> {
+  await api.delete(`/data/custom-lab-tests/${id}`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TEMPLATES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export async function getPrescriptionTemplates(): Promise<PrescriptionTemplate[]> {
+  const res = await api.get('/data/templates');
+  return (res.data.templates as Record<string, unknown>[]).map(mapPrescriptionTemplate);
+}
+
+export async function savePrescriptionTemplate(data: Omit<PrescriptionTemplate, 'id' | 'createdAt'>): Promise<PrescriptionTemplate> {
+  const payload = {
+    name: data.name,
+    chief_complaint: data.chiefComplaint,
+    diagnosis: data.diagnosis,
+    advice: data.advice,
+    symptoms: data.symptoms,
+    medicines: data.medicines.map((m) => ({
+      medicine_name: m.medicineName,
+      type: m.type,
+      dosage: m.dosage,
+      frequency: m.frequency,
+      duration: m.duration,
+      timing: m.timing,
+      notes: m.notes,
+    })),
+    lab_tests: data.labTests.map((t) => ({
+      test_name: t.testName,
+      category: t.category,
+      notes: t.notes,
+    })),
+  };
+  const res = await api.post('/data/templates', payload);
+  return mapPrescriptionTemplate(res.data.template);
+}
+
+export async function deletePrescriptionTemplate(id: string): Promise<void> {
+  await api.delete(`/data/templates/${id}`);
 }

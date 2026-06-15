@@ -4,6 +4,7 @@ import {
   PrescriptionDraft,
   PrescriptionMedicine,
   PrescriptionLabTest,
+  PrescriptionTemplate,
 } from '../types/prescription.types';
 import * as DataService from '../services/dataService';
 
@@ -14,6 +15,7 @@ interface PrescriptionStore {
   currentDraft: PrescriptionDraft;
   currentPrescription: Prescription | null;
   recentPrescriptions: Prescription[];
+  templates: PrescriptionTemplate[];
   isLoading: boolean;
   queueItemId: string | null;
 
@@ -32,6 +34,12 @@ interface PrescriptionStore {
   loadRecentPrescriptions: () => Promise<void>;
   loadPrescription: (id: string) => Promise<Prescription | null>;
   getTodayCount: () => Promise<number>;
+
+  // Templates
+  loadTemplates: () => Promise<void>;
+  saveTemplate: (name: string) => Promise<void>;
+  deleteTemplate: (id: string) => Promise<void>;
+  applyTemplate: (template: PrescriptionTemplate) => void;
 }
 
 const emptyDraft: PrescriptionDraft = {
@@ -41,10 +49,12 @@ const emptyDraft: PrescriptionDraft = {
   patientGender: '',
   patientWeight: '',
   patientPhone: '',
+  chiefComplaint: '',
   diagnosis: '',
   advice: '',
   followUpDate: '',
   symptoms: [],
+  vitals: {},
   medicines: [],
   labTests: [],
 };
@@ -53,6 +63,7 @@ export const usePrescriptionStore = create<PrescriptionStore>((set, get) => ({
   currentDraft: { ...emptyDraft },
   currentPrescription: null,
   recentPrescriptions: [],
+  templates: [],
   isLoading: false,
   queueItemId: null,
 
@@ -142,5 +153,59 @@ export const usePrescriptionStore = create<PrescriptionStore>((set, get) => ({
 
   getTodayCount: async () => {
     return DataService.getTodayPrescriptionCount();
+  },
+
+  loadTemplates: async () => {
+    try {
+      const templates = await DataService.getPrescriptionTemplates();
+      set({ templates });
+    } catch (error) {
+      console.error('Failed to load templates:', error);
+    }
+  },
+
+  saveTemplate: async (name) => {
+    try {
+      const draft = get().currentDraft;
+      const newTemplate = await DataService.savePrescriptionTemplate({
+        name,
+        chiefComplaint: draft.chiefComplaint,
+        diagnosis: draft.diagnosis,
+        advice: draft.advice,
+        symptoms: draft.symptoms,
+        medicines: draft.medicines,
+        labTests: draft.labTests,
+      });
+      set((state) => ({ templates: [...state.templates, newTemplate] }));
+    } catch (error) {
+      console.error('Failed to save template:', error);
+      throw error;
+    }
+  },
+
+  deleteTemplate: async (id) => {
+    try {
+      await DataService.deletePrescriptionTemplate(id);
+      set((state) => ({
+        templates: state.templates.filter((t) => t.id !== id),
+      }));
+    } catch (error) {
+      console.error('Failed to delete template:', error);
+      throw error;
+    }
+  },
+
+  applyTemplate: (template) => {
+    set((state) => ({
+      currentDraft: {
+        ...state.currentDraft,
+        chiefComplaint: template.chiefComplaint || state.currentDraft.chiefComplaint,
+        diagnosis: template.diagnosis || state.currentDraft.diagnosis,
+        advice: template.advice || state.currentDraft.advice,
+        symptoms: [...new Set([...state.currentDraft.symptoms, ...template.symptoms])],
+        medicines: [...state.currentDraft.medicines, ...template.medicines],
+        labTests: [...state.currentDraft.labTests, ...template.labTests],
+      },
+    }));
   },
 }));

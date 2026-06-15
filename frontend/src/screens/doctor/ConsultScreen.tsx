@@ -64,6 +64,8 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showSymptomsModal, setShowSymptomsModal] = useState(false);
   const [customSymptom, setCustomSymptom] = useState('');
+  const [showTemplatesModal, setShowTemplatesModal] = useState(false);
+  const [templateName, setTemplateName] = useState('');
   // Live patient data for real-time updates
   const [patient, setPatient] = useState(initialPatient);
 
@@ -240,7 +242,16 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.navHeaderTitle}>{t('nav.consultation')}</Text>
-        <View style={styles.navHeaderSpacer} />
+        <TouchableOpacity
+          style={styles.navHeaderAction}
+          onPress={async () => {
+            await usePrescriptionStore.getState().loadTemplates();
+            setShowTemplatesModal(true);
+          }}
+        >
+          <Ionicons name="document-text-outline" size={20} color={COLORS.primary} />
+          <Text style={styles.navHeaderActionText}>Templates</Text>
+        </TouchableOpacity>
       </View>
       <KeyboardAvoidingView
         style={styles.container}
@@ -281,6 +292,78 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
                 <Ionicons name="create-outline" size={20} color={COLORS.primary} />
               </TouchableOpacity>
             </View>
+          </View>
+
+          {/* Vitals Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Vitals</Text>
+            <View style={styles.vitalsGrid}>
+              <View style={styles.vitalInputGroup}>
+                <Text style={styles.vitalLabel}>BP</Text>
+                <TextInput
+                  style={styles.vitalInput}
+                  placeholder="120/80"
+                  value={currentDraft.vitals?.bp}
+                  onChangeText={(t) => updateDraft({ vitals: { ...currentDraft.vitals, bp: t } })}
+                />
+              </View>
+              <View style={styles.vitalInputGroup}>
+                <Text style={styles.vitalLabel}>Pulse</Text>
+                <TextInput
+                  style={styles.vitalInput}
+                  placeholder="72"
+                  keyboardType="numeric"
+                  value={currentDraft.vitals?.pulse}
+                  onChangeText={(t) => updateDraft({ vitals: { ...currentDraft.vitals, pulse: t } })}
+                />
+              </View>
+              <View style={styles.vitalInputGroup}>
+                <Text style={styles.vitalLabel}>Temp (°F)</Text>
+                <TextInput
+                  style={styles.vitalInput}
+                  placeholder="98.6"
+                  keyboardType="numeric"
+                  value={currentDraft.vitals?.temperature}
+                  onChangeText={(t) => updateDraft({ vitals: { ...currentDraft.vitals, temperature: t } })}
+                />
+              </View>
+              <View style={styles.vitalInputGroup}>
+                <Text style={styles.vitalLabel}>SpO2 (%)</Text>
+                <TextInput
+                  style={styles.vitalInput}
+                  placeholder="98"
+                  keyboardType="numeric"
+                  value={currentDraft.vitals?.spO2}
+                  onChangeText={(t) => updateDraft({ vitals: { ...currentDraft.vitals, spO2: t } })}
+                />
+              </View>
+              <View style={styles.vitalInputGroup}>
+                <Text style={styles.vitalLabel}>Weight (kg)</Text>
+                <TextInput
+                  style={styles.vitalInput}
+                  placeholder="70"
+                  keyboardType="numeric"
+                  value={currentDraft.vitals?.weight || currentDraft.patientWeight}
+                  onChangeText={(t) => updateDraft({ vitals: { ...currentDraft.vitals, weight: t } })}
+                />
+              </View>
+            </View>
+          </View>
+
+
+
+          {/* Chief Complaint */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Chief Complaint</Text>
+            <TextInput
+              style={styles.textArea}
+              placeholder="E.g., Patient complains of fever for 3 days..."
+              multiline
+              numberOfLines={2}
+              value={currentDraft.chiefComplaint}
+              onChangeText={(t) => updateDraft({ chiefComplaint: t })}
+              textAlignVertical="top"
+            />
           </View>
 
           {/* Symptoms Section */}
@@ -602,6 +685,97 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
             </View>
           </KeyboardAvoidingView>
         </Modal>
+
+        {/* Templates Modal */}
+        <Modal
+          visible={showTemplatesModal}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setShowTemplatesModal(false)}
+        >
+          <KeyboardAvoidingView
+            style={styles.modalOverlay}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            <View style={[styles.modalSheet, { maxHeight: '80%', minHeight: '60%' }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Prescription Templates</Text>
+                <TouchableOpacity onPress={() => setShowTemplatesModal(false)}>
+                  <Ionicons name="close" size={24} color={COLORS.textLight} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.templateSaveSection}>
+                <TextInput
+                  style={styles.templateInput}
+                  placeholder="Save current draft as a template (e.g. Viral Fever)"
+                  value={templateName}
+                  onChangeText={setTemplateName}
+                />
+                <TouchableOpacity
+                  style={[styles.saveTemplateBtn, !templateName.trim() && { opacity: 0.5 }]}
+                  disabled={!templateName.trim()}
+                  onPress={async () => {
+                    try {
+                      await usePrescriptionStore.getState().saveTemplate(templateName.trim());
+                      setTemplateName('');
+                      Alert.alert('Success', 'Template saved!');
+                    } catch (e: any) {
+                      Alert.alert('Error', e.message || 'Failed to save template');
+                    }
+                  }}
+                >
+                  <Text style={styles.saveTemplateText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.templateList} contentContainerStyle={{ padding: SPACING.lg }}>
+                {usePrescriptionStore.getState().templates.length === 0 ? (
+                  <Text style={styles.emptyTemplatesText}>No templates saved yet.</Text>
+                ) : (
+                  usePrescriptionStore.getState().templates.map(t => (
+                    <View key={t.id} style={styles.templateCard}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.templateName}>{t.name}</Text>
+                        <Text style={styles.templateMeta}>
+                          {t.medicines.length} Meds | {t.labTests.length} Tests | {t.symptoms.length} Symptoms
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.applyTemplateBtn}
+                        onPress={() => {
+                          usePrescriptionStore.getState().applyTemplate(t);
+                          setShowTemplatesModal(false);
+                        }}
+                      >
+                        <Text style={styles.applyTemplateText}>Load</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.deleteTemplateBtn}
+                        onPress={() => {
+                          Alert.alert('Delete', `Delete template "${t.name}"?`, [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Delete',
+                              style: 'destructive',
+                              onPress: () => usePrescriptionStore.getState().deleteTemplate(t.id)
+                            }
+                          ]);
+                        }}
+                      >
+                        <Ionicons name="trash-outline" size={18} color={COLORS.error} />
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                )}
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+
+        {/* Assistant FAB */}
+        <AssistantModal context="consult" currentDraft={currentDraft} />
+
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -762,6 +936,43 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: COLORS.primary,
+  },
+
+  // Vitals & Chief Complaint
+  vitalsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  vitalInputGroup: {
+    flex: 1,
+    minWidth: '30%',
+  },
+  vitalLabel: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  vitalInput: {
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    fontSize: 14,
+    color: COLORS.text,
+  },
+  textArea: {
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: SPACING.md,
+    fontSize: 14,
+    color: COLORS.text,
+    minHeight: 60,
   },
 
   // Inputs
@@ -1013,5 +1224,95 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: COLORS.white,
+  },
+
+  // Templates Modal Styles
+  navHeaderAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    padding: SPACING.xs,
+  },
+  navHeaderActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  templateSaveSection: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+    gap: SPACING.sm,
+  },
+  templateInput: {
+    flex: 1,
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    fontSize: 14,
+    color: COLORS.text,
+  },
+  saveTemplateBtn: {
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  saveTemplateText: {
+    color: COLORS.white,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  templateList: {
+    flex: 1,
+  },
+  emptyTemplatesText: {
+    textAlign: 'center',
+    color: COLORS.textMuted,
+    marginTop: SPACING.xl,
+    fontStyle: 'italic',
+  },
+  templateCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    marginBottom: SPACING.sm,
+  },
+  templateName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  templateMeta: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  applyTemplateBtn: {
+    backgroundColor: COLORS.primarySurface,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    marginRight: SPACING.sm,
+  },
+  applyTemplateText: {
+    color: COLORS.primary,
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  deleteTemplateBtn: {
+    padding: SPACING.xs,
   },
 });

@@ -5,6 +5,7 @@ from app.models.data import (
     PatientRequest, QueueRequest, QueueStatusRequest,
     PrescriptionRequest, CustomMedicineRequest, CustomMedicineUsageRequest,
     CustomLabTestRequest, CustomLabTestUsageRequest, FinalizePrescriptionRequest,
+    PrescriptionTemplateRequest,
 )
 from app.middleware.auth import get_current_user, require_doctor, TokenData
 import app.services.data_service as data_service
@@ -420,5 +421,45 @@ async def delete_lab_test(test_id: str, request: Request):
     try:
         await data_service.delete_custom_lab_test(user.clinic_id, test_id)
         return _ok({"message": "Lab test deleted"})
+    except Exception as e:
+        return _err(str(e), 500)
+
+
+# ─── Prescription Templates ───────────────────────────────────────────────────
+
+@router.get("/templates")
+async def get_templates(request: Request):
+    user: TokenData = await get_current_user(request)
+    if not user.clinic_id:
+        return _err("No clinic associated", 400)
+    try:
+        templates = await data_service.get_prescription_templates(user.clinic_id)
+        return _ok({"templates": templates})
+    except Exception as e:
+        return _err(str(e), 500)
+
+
+@router.post("/templates")
+async def save_template(request: Request, body: PrescriptionTemplateRequest):
+    user: TokenData = await get_current_user(request)
+    if not user.clinic_id:
+        return _err("No clinic associated", 400)
+    try:
+        template = await data_service.save_prescription_template(
+            user.clinic_id, body.normalized()
+        )
+        return _ok({"template": template}, 201)
+    except Exception as e:
+        return _err(str(e), 500)
+
+
+@router.delete("/templates/{template_id}")
+async def delete_template(template_id: str, request: Request):
+    user: TokenData = await get_current_user(request)
+    if not user.clinic_id:
+        return _err("No clinic associated", 400)
+    try:
+        await data_service.delete_prescription_template(user.clinic_id, template_id)
+        return _ok({"message": "Template deleted"})
     except Exception as e:
         return _err(str(e), 500)

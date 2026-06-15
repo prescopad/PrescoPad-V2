@@ -145,6 +145,21 @@ function buildPrescriptionHTML(
     </div>
   </div>
 
+  ${rx.vitals && Object.values(rx.vitals).some(v => v) ? `
+  <div style="display:flex; gap: 20px; margin-bottom: 12px; font-size: 11px; color: #475569; padding: 6px 10px; background: #F1F5F9; border-radius: 4px;">
+    ${rx.vitals.bp ? `<div><strong>BP:</strong> ${rx.vitals.bp}</div>` : ''}
+    ${rx.vitals.pulse ? `<div><strong>Pulse:</strong> ${rx.vitals.pulse}</div>` : ''}
+    ${rx.vitals.temperature ? `<div><strong>Temp:</strong> ${rx.vitals.temperature} °F</div>` : ''}
+    ${rx.vitals.spO2 ? `<div><strong>SpO2:</strong> ${rx.vitals.spO2}%</div>` : ''}
+    ${rx.vitals.weight ? `<div><strong>Weight:</strong> ${rx.vitals.weight} kg</div>` : ''}
+  </div>
+  ` : ''}
+
+  ${rx.chiefComplaint ? `
+  <div class="section-title">Chief Complaint</div>
+  <div style="font-size:12px;color:#334155;margin-bottom:8px;line-height:18px;">${rx.chiefComplaint}</div>
+  ` : ''}
+
   ${rx.symptoms && rx.symptoms.length > 0 ? `
   <div class="section-title">Symptoms</div>
   <div style="font-size:12px;color:#334155;margin-bottom:8px;line-height:18px;">${rx.symptoms.join(', ')}</div>
@@ -216,6 +231,21 @@ export function buildShareText(
   text += `Date: ${dateStr}\n`;
   text += `Doctor: Dr. ${doctor?.name || 'Doctor'}\n\n`;
   text += `*Patient:* ${rx.patientName} (${rx.patientAge}/${rx.patientGender})\n\n`;
+
+  if (rx.vitals && Object.values(rx.vitals).some(v => v)) {
+    const v = rx.vitals;
+    let vitalsStr = [];
+    if (v.bp) vitalsStr.push(`BP: ${v.bp}`);
+    if (v.pulse) vitalsStr.push(`Pulse: ${v.pulse}`);
+    if (v.temperature) vitalsStr.push(`Temp: ${v.temperature}°F`);
+    if (v.spO2) vitalsStr.push(`SpO2: ${v.spO2}%`);
+    if (v.weight) vitalsStr.push(`Wt: ${v.weight}kg`);
+    text += `*Vitals:* ${vitalsStr.join(' | ')}\n\n`;
+  }
+
+  if (rx.chiefComplaint) {
+    text += `*C/C:* ${rx.chiefComplaint}\n\n`;
+  }
 
   if (rx.symptoms && rx.symptoms.length > 0) {
     text += `*Symptoms:* ${rx.symptoms.join(', ')}\n\n`;
