@@ -18,51 +18,39 @@
 
 import { Dimensions, Platform, StatusBar } from 'react-native';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+export const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const BASE_WIDTH = 375;
 const BASE_HEIGHT = 812;
 
 /** Horizontal/font scaling – proportional to screen width */
-const rs = (size: number): number => (screenWidth / BASE_WIDTH) * size;
+export const rs = (size: number): number => (screenWidth / BASE_WIDTH) * size;
 
 /** Vertical scaling – proportional to screen height */
-const vs = (size: number): number => (screenHeight / BASE_HEIGHT) * size;
+export const vs = (size: number): number => (screenHeight / BASE_HEIGHT) * size;
 
 /**
  * Moderate scale – prevents extreme values on very large/small devices.
  * @param size   baseline size
  * @param factor 0–1, how aggressively to scale (default 0.5)
  */
-const ms = (size: number, factor = 0.5): number =>
+export const ms = (size: number, factor = 0.5): number =>
   size + (rs(size) - size) * factor;
 
-const isSmallScreen = screenWidth < 360;
-const isLargeScreen = screenWidth >= 414;
+export const isSmallScreen = screenWidth < 360;
+export const isLargeScreen = screenWidth >= 414;
 
 /**
  * Correct paddingTop for custom nav headers:
  *  – iOS   : no StatusBar overlap (SafeAreaView handles it)
  *  – Android: use actual StatusBar height so content sits below the bar
  */
-const HEADER_PADDING_TOP =
+export const HEADER_PADDING_TOP =
   Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) + 4 : 8;
 
 /**
  * Keyboard vertical offset for KeyboardAvoidingView on Android.
  * Represents the height of the status bar + a typical nav header (~56px).
  */
-const KEYBOARD_VERTICAL_OFFSET =
+export const KEYBOARD_VERTICAL_OFFSET =
   Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) + 56 : 0;
-
-export {
-  screenWidth,
-  screenHeight,
-  rs,
-  vs,
-  ms,
-  isSmallScreen,
-  isLargeScreen,
-  HEADER_PADDING_TOP,
-  KEYBOARD_VERTICAL_OFFSET,
-};
