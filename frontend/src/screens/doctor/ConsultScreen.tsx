@@ -545,9 +545,9 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
               >
-                {/* Common symptoms grid */}
+                {/* Common and custom symptoms grid */}
                 <View style={styles.symptomsGrid}>
-                  {COMMON_SYMPTOMS.map((symptom) => {
+                  {[...COMMON_SYMPTOMS, ...selectedSymptoms.filter(s => !COMMON_SYMPTOMS.includes(s as any))].map((symptom) => {
                     const isSelected = selectedSymptoms.includes(symptom);
                     return (
                       <TouchableOpacity
