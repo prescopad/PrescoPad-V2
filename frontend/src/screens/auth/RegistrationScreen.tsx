@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, StatusBar,
   KeyboardAvoidingView, Platform, Alert, ActivityIndicator, ScrollView,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -12,7 +12,7 @@ import { completeRegistration } from '../../services/authService';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useClinicStore } from '../../store/useClinicStore';
 import { AuthStackParamList } from '../../types/navigation.types';
-import { HEADER_PADDING_TOP, KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
+import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Registration'>;
 

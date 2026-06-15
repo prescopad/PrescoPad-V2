@@ -11,9 +11,9 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
-  SafeAreaView,
   useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
@@ -25,7 +25,7 @@ import { useQueueStore } from '../../store/useQueueStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Gender, PatientFormData, BLOOD_GROUPS } from '../../types/patient.types';
 import type { AssistantStackParamList } from '../../types/navigation.types';
-import { HEADER_PADDING_TOP, KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
+import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 
 type NavigationProp = NativeStackNavigationProp<AssistantStackParamList>;
 
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: COLORS.white,
-    paddingTop: HEADER_PADDING_TOP,
+    paddingTop: SPACING.sm,
     paddingBottom: SPACING.lg,
     paddingHorizontal: SPACING.lg,
     borderBottomWidth: 1,

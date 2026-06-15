@@ -92,13 +92,8 @@ export default function AssistantDashboard(): React.JSX.Element {
   const handleSearch = useCallback(
     (text: string) => {
       setSearchQuery(text);
-      if (text.trim().length > 0) {
-        searchPatients(text.trim());
-      } else {
-        clearSearch();
-      }
     },
-    [searchPatients, clearSearch],
+    [],
   );
 
   const handleAddPatientFromSearch = useCallback(
@@ -145,6 +140,14 @@ export default function AssistantDashboard(): React.JSX.Element {
       item.status === QueueStatus.WAITING ||
       item.status === QueueStatus.IN_PROGRESS,
   );
+
+  // Filter queue by search query
+  const filteredQueue = searchQuery.trim().length > 0
+    ? activeQueue.filter(item =>
+        item.patient?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        String(item.tokenNumber).includes(searchQuery)
+      )
+    : activeQueue;
 
   const statusLabelKey = (status: QueueStatus): string => {
     switch (status) {
@@ -308,7 +311,7 @@ export default function AssistantDashboard(): React.JSX.Element {
           />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search patient to add to queue..."
+            placeholder="Search patient in queue..."
             placeholderTextColor={COLORS.textLight}
             value={searchQuery}
             onChangeText={handleSearch}
@@ -318,7 +321,6 @@ export default function AssistantDashboard(): React.JSX.Element {
             <TouchableOpacity
               onPress={() => {
                 setSearchQuery('');
-                clearSearch();
               }}
             >
               <Ionicons
@@ -329,19 +331,6 @@ export default function AssistantDashboard(): React.JSX.Element {
             </TouchableOpacity>
           )}
         </View>
-
-        {/* Search Results Dropdown */}
-        {searchQuery.length > 0 && searchResults.length > 0 && (
-          <View style={styles.searchResultsDropdown}>
-            <FlatList
-              data={searchResults}
-              keyExtractor={(item) => item.id}
-              renderItem={renderSearchResult}
-              keyboardShouldPersistTaps="handled"
-              style={styles.searchResultsList}
-            />
-          </View>
-        )}
       </View>
 
       {/* Active Queue */}
@@ -351,7 +340,7 @@ export default function AssistantDashboard(): React.JSX.Element {
         </View>
       ) : (
         <FlatList
-          data={activeQueue}
+          data={filteredQueue}
           keyExtractor={(item) => item.id}
           renderItem={renderQueueItem}
           contentContainerStyle={styles.listContent}

@@ -82,16 +82,13 @@ export default function PrescriptionViewScreen(): React.JSX.Element {
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.paper}>
-          {/* Rx Header & Date */}
+          {/* Date & Status row (no Rx symbol) */}
           <View style={styles.rxRow}>
-            <Text style={styles.rxSymbol}>Rx</Text>
-            <View style={styles.rxMeta}>
-              <Text style={styles.rxDate}>Date: {formatDate(rx.createdAt)}</Text>
-              <View style={[styles.statusBadge, { backgroundColor: rx.status === 'finalized' ? COLORS.successLight : COLORS.warningLight }]}>
-                <Text style={[styles.statusText, { color: rx.status === 'finalized' ? COLORS.success : COLORS.warning }]}>
-                  {rx.status === 'finalized' ? 'Issued' : 'Draft'}
-                </Text>
-              </View>
+            <Text style={styles.rxDate}>Date: {formatDate(rx.createdAt)}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: rx.status === 'finalized' ? COLORS.successLight : COLORS.warningLight }]}>
+              <Text style={[styles.statusText, { color: rx.status === 'finalized' ? COLORS.success : COLORS.warning }]}>
+                {rx.status === 'finalized' ? 'Issued' : 'Draft'}
+              </Text>
             </View>
           </View>
 

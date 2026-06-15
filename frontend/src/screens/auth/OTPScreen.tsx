@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, StatusBar,
   KeyboardAvoidingView, Platform, Alert, ActivityIndicator, ScrollView,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
@@ -13,7 +13,7 @@ import { useWalletStore } from '../../store/useWalletStore';
 import { UserRole } from '../../types/auth.types';
 import { AuthStackParamList } from '../../types/navigation.types';
 import { useTranslation } from 'react-i18next';
-import { HEADER_PADDING_TOP } from '../../utils/responsive';
+import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'OTP'>;
 
