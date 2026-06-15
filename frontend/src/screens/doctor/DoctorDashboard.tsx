@@ -265,6 +265,7 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.headerLeft}>
+            <Text style={styles.appName}>PrescoPad</Text>
             <Text style={styles.greeting}>Hello, Dr. {doctorName}</Text>
             {clinicName ? <Text style={styles.clinicName}>{clinicName}</Text> : null}
           </View>
@@ -503,6 +504,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
+  },
+  appName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.primary,
+    marginBottom: 4,
+    letterSpacing: 0.5,
   },
   greeting: {
     fontSize: 22,
