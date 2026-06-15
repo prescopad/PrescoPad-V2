@@ -40,7 +40,8 @@ export const usePatientStore = create<PatientStore>((set) => ({
     }
     try {
       const searchResults = await DataService.getPatients(query);
-      set({ searchResults });
+      // Sort alphabetically by name
+      set({ searchResults: [...searchResults].sort((a, b) => a.name.localeCompare(b.name)) });
     } catch {
       set({ searchResults: [] });
     }

@@ -140,7 +140,7 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
   };
 
   const doctorName = doctorProfile?.name || user?.name || 'Doctor';
-  const clinicName = clinic?.name || APP_CONFIG.name;
+  const clinicName = clinic?.name || '';
 
   const getStatusColor = (status: QueueStatus): string => {
     switch (status) {
@@ -244,7 +244,7 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
         <View style={styles.headerTop}>
           <View style={styles.headerLeft}>
             <Text style={styles.greeting}>Hello, Dr. {doctorName}</Text>
-            <Text style={styles.clinicName}>{clinicName}</Text>
+            {clinicName ? <Text style={styles.clinicName}>{clinicName}</Text> : null}
           </View>
           <View style={styles.headerRight}>
             <View style={styles.syncBadge}>
@@ -354,7 +354,7 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
         </View>
       ) : (
         <FlatList
-          data={queueItems}
+          data={[...queueItems].sort((a, b) => b.tokenNumber - a.tokenNumber)}
           keyExtractor={(item) => item.id}
           renderItem={renderQueueItem}
           ListHeaderComponent={renderHeader}

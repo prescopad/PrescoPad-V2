@@ -13,6 +13,7 @@ import {
   Modal,
   useWindowDimensions,
   SafeAreaView,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -31,12 +32,12 @@ type LabTestDraft = Omit<PrescriptionLabTest, 'id' | 'prescriptionId'>;
 type ConsultScreenProps = NativeStackScreenProps<DoctorStackParamList, 'Consult'>;
 
 const COMMON_SYMPTOMS = [
-  'Fever', 'Cold & Cough', 'Headache', 'Body Pain', 'Fatigue',
-  'Nausea', 'Vomiting', 'Diarrhea', 'Chest Pain', 'Shortness of Breath',
-  'Abdominal Pain', 'Back Pain', 'Joint Pain', 'Skin Rash', 'Sore Throat',
-  'Runny Nose', 'Loss of Appetite', 'Dizziness', 'Swelling', 'Itching',
-  'Weakness', 'Insomnia', 'Anxiety', 'Palpitations', 'Constipation',
-  'Burning Urination', 'Blurred Vision', 'Ear Pain', 'Toothache', 'Eye Redness',
+  'Abdominal Pain', 'Anxiety', 'Back Pain', 'Blurred Vision', 'Body Pain',
+  'Burning Urination', 'Chest Pain', 'Cold & Cough', 'Constipation', 'Diarrhea',
+  'Dizziness', 'Ear Pain', 'Eye Redness', 'Fatigue', 'Fever',
+  'Headache', 'Insomnia', 'Itching', 'Joint Pain', 'Loss of Appetite',
+  'Nausea', 'Palpitations', 'Runny Nose', 'Shortness of Breath', 'Skin Rash',
+  'Sore Throat', 'Swelling', 'Toothache', 'Vomiting', 'Weakness',
 ] as const;
 
 export default function ConsultScreen({ navigation, route }: ConsultScreenProps): React.JSX.Element {
@@ -230,6 +231,7 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
       {/* Custom header replaces native RN header to avoid double-bar on Android */}
       <View style={styles.navHeader}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navBackBtn}>
@@ -553,9 +555,13 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
                         onPress={() => toggleSymptom(symptom)}
                         activeOpacity={0.7}
                       >
-                        {isSelected && (
-                          <Ionicons name="checkmark" size={14} color={COLORS.white} style={{ marginRight: 4 }} />
-                        )}
+                        <View style={styles.symptomCheckIcon}>
+                          {isSelected ? (
+                            <Ionicons name="checkmark" size={13} color={COLORS.white} />
+                          ) : (
+                            <View style={styles.symptomCheckPlaceholder} />
+                          )}
+                        </View>
                         <Text style={[styles.symptomGridText, isSelected && styles.symptomGridTextSelected]}>
                           {symptom}
                         </Text>
@@ -860,6 +866,7 @@ const styles = StyleSheet.create({
   bottomBar: {
     backgroundColor: COLORS.white,
     padding: SPACING.lg,
+    paddingBottom: SPACING.lg + (Platform.OS === 'android' ? 8 : 0),
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
     ...SHADOWS.lg,
@@ -894,8 +901,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: RADIUS.xl,
     borderTopRightRadius: RADIUS.xl,
     paddingTop: SPACING.lg,
-    paddingBottom: SPACING.xxxl,
-    maxHeight: '88%',
+    paddingBottom: SPACING.xxl,
+    maxHeight: '90%',
+    minHeight: '60%',
   },
   modalScroll: {
     flexGrow: 0,
@@ -940,10 +948,23 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: COLORS.border,
     backgroundColor: COLORS.white,
+    // Fixed min-width prevents layout shift when checkmark appears/disappears
+    minWidth: 80,
   },
   symptomGridItemSelected: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
+  },
+  symptomCheckIcon: {
+    width: 16,
+    height: 16,
+    marginRight: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  symptomCheckPlaceholder: {
+    width: 13,
+    height: 13,
   },
   symptomGridText: {
     fontSize: 13,

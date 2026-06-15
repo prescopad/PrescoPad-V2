@@ -319,7 +319,8 @@ export async function searchAllMedicines(query: string): Promise<Medicine[]> {
       merged.push(m);
     }
   }
-  return merged;
+  // Sort alphabetically
+  return merged.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getAllFrequentMedicines(limit = 20): Promise<Medicine[]> {
@@ -377,7 +378,8 @@ export async function searchAllLabTests(query: string): Promise<LabTest[]> {
       merged.push(t);
     }
   }
-  return merged;
+  // Sort alphabetically
+  return merged.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getAllFrequentLabTests(limit = 20): Promise<LabTest[]> {

@@ -16,7 +16,7 @@ export async function searchMedicines(query: string): Promise<Medicine[]> {
 export async function getFrequentMedicines(limit = 20): Promise<Medicine[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<Record<string, unknown>>(
-    'SELECT * FROM medicines ORDER BY usage_count DESC LIMIT ?',
+    'SELECT * FROM medicines ORDER BY usage_count DESC, name ASC LIMIT ?',
     [limit]
   );
   return rows.map(mapMedicineRow);
@@ -54,7 +54,7 @@ export async function getLabTestsByCategory(category: string): Promise<LabTest[]
 export async function getFrequentLabTests(limit = 20): Promise<LabTest[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<Record<string, unknown>>(
-    'SELECT * FROM lab_tests ORDER BY usage_count DESC LIMIT ?',
+    'SELECT * FROM lab_tests ORDER BY usage_count DESC, name ASC LIMIT ?',
     [limit]
   );
   return rows.map(mapLabTestRow);

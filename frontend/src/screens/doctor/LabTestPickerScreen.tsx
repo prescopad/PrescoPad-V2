@@ -13,6 +13,7 @@ import {
   Platform,
   SafeAreaView,
   useWindowDimensions,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -90,13 +91,14 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
       setIsSearching(true);
       try {
         const results = await searchAllLabTests(text.trim());
-        setLabTests(results);
+        // Sort alphabetically
+        setLabTests(results.sort((a, b) => a.name.localeCompare(b.name)));
       } catch {
         // Silently handle
       } finally {
         setIsSearching(false);
       }
-    }, 300);
+    }, 200);
   }, []);
 
   const handleSelectCategory = async (category: string) => {
@@ -253,6 +255,15 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
 
   return (
     <SafeAreaView style={styles.safeArea}>
+    <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
+    {/* Custom navigation header */}
+    <View style={styles.navHeader}>
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navBackBtn}>
+        <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+      </TouchableOpacity>
+      <Text style={styles.navHeaderTitle}>Add Lab Test</Text>
+      <View style={styles.navHeaderSpacer} />
+    </View>
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -448,7 +459,30 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
+  },
+  // Nav Header
+  navHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.md,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  navBackBtn: {
+    padding: SPACING.xs,
+  },
+  navHeaderTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  navHeaderSpacer: {
+    width: 32,
   },
   innerContainer: {
     flex: 1,
