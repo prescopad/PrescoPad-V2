@@ -294,78 +294,6 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
             </View>
           </View>
 
-          {/* Vitals Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Vitals</Text>
-            <View style={styles.vitalsGrid}>
-              <View style={styles.vitalInputGroup}>
-                <Text style={styles.vitalLabel}>BP</Text>
-                <TextInput
-                  style={styles.vitalInput}
-                  placeholder="120/80"
-                  value={currentDraft.vitals?.bp}
-                  onChangeText={(t) => updateDraft({ vitals: { ...currentDraft.vitals, bp: t } })}
-                />
-              </View>
-              <View style={styles.vitalInputGroup}>
-                <Text style={styles.vitalLabel}>Pulse</Text>
-                <TextInput
-                  style={styles.vitalInput}
-                  placeholder="72"
-                  keyboardType="numeric"
-                  value={currentDraft.vitals?.pulse}
-                  onChangeText={(t) => updateDraft({ vitals: { ...currentDraft.vitals, pulse: t } })}
-                />
-              </View>
-              <View style={styles.vitalInputGroup}>
-                <Text style={styles.vitalLabel}>Temp (°F)</Text>
-                <TextInput
-                  style={styles.vitalInput}
-                  placeholder="98.6"
-                  keyboardType="numeric"
-                  value={currentDraft.vitals?.temperature}
-                  onChangeText={(t) => updateDraft({ vitals: { ...currentDraft.vitals, temperature: t } })}
-                />
-              </View>
-              <View style={styles.vitalInputGroup}>
-                <Text style={styles.vitalLabel}>SpO2 (%)</Text>
-                <TextInput
-                  style={styles.vitalInput}
-                  placeholder="98"
-                  keyboardType="numeric"
-                  value={currentDraft.vitals?.spO2}
-                  onChangeText={(t) => updateDraft({ vitals: { ...currentDraft.vitals, spO2: t } })}
-                />
-              </View>
-              <View style={styles.vitalInputGroup}>
-                <Text style={styles.vitalLabel}>Weight (kg)</Text>
-                <TextInput
-                  style={styles.vitalInput}
-                  placeholder="70"
-                  keyboardType="numeric"
-                  value={currentDraft.vitals?.weight || currentDraft.patientWeight}
-                  onChangeText={(t) => updateDraft({ vitals: { ...currentDraft.vitals, weight: t } })}
-                />
-              </View>
-            </View>
-          </View>
-
-
-
-          {/* Chief Complaint */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Chief Complaint</Text>
-            <TextInput
-              style={styles.textArea}
-              placeholder="E.g., Patient complains of fever for 3 days..."
-              multiline
-              numberOfLines={2}
-              value={currentDraft.chiefComplaint}
-              onChangeText={(t) => updateDraft({ chiefComplaint: t })}
-              textAlignVertical="top"
-            />
-          </View>
-
           {/* Symptoms Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
@@ -937,32 +865,7 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
 
-  // Vitals & Chief Complaint
-  vitalsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-  },
-  vitalInputGroup: {
-    flex: 1,
-    minWidth: '30%',
-  },
-  vitalLabel: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginBottom: 4,
-    fontWeight: '500',
-  },
-  vitalInput: {
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.sm,
-    fontSize: 14,
-    color: COLORS.text,
-  },
+
   textArea: {
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.md,

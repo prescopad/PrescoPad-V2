@@ -1,6 +1,6 @@
 import api from './api';
 import { Patient, PatientFormData } from '../types/patient.types';
-import { Prescription, PrescriptionDraft, PrescriptionMedicine, PrescriptionLabTest, PrescriptionStatus, PrescriptionTemplate, Vitals } from '../types/prescription.types';
+import { Prescription, PrescriptionDraft, PrescriptionMedicine, PrescriptionLabTest, PrescriptionStatus, PrescriptionTemplate } from '../types/prescription.types';
 import { QueueItem, QueueStatus } from '../types/queue.types';
 import { Medicine, LabTest } from '../types/medicine.types';
 import { searchMedicines as searchLocalMedicines, getFrequentMedicines as getLocalFrequentMedicines, searchLabTests as searchLocalLabTests, getFrequentLabTests as getLocalFrequentLabTests, getLabTestsByCategory as getLocalLabTestsByCategory, incrementMedicineUsage as incrementLocalMedicineUsage, incrementLabTestUsage as incrementLocalLabTestUsage } from '../database/queries/medicineQueries';
@@ -67,8 +67,6 @@ function mapPrescription(row: Record<string, unknown>): Prescription {
     advice: (row.advice as string) ?? '',
     followUpDate: (row.follow_up_date as string) ?? null,
     symptoms: (row.symptoms as string[]) ?? [],
-    chiefComplaint: (row.chief_complaint as string) ?? undefined,
-    vitals: (row.vitals as Vitals) ?? undefined,
     pdfPath: null, // PDF is local-only
     pdfHash: (row.pdf_hash as string) ?? null,
     signature: (row.signature as string) ?? null,
@@ -86,7 +84,7 @@ function mapPrescriptionTemplate(row: Record<string, unknown>): PrescriptionTemp
   return {
     id: row._id as string || row.id as string,
     name: row.name as string,
-    chiefComplaint: (row.chief_complaint as string) ?? undefined,
+
     diagnosis: (row.diagnosis as string) ?? '',
     advice: (row.advice as string) ?? '',
     symptoms: (row.symptoms as string[]) ?? [],
@@ -268,12 +266,12 @@ export async function createPrescription(draft: PrescriptionDraft, doctorId: str
     patient_age: parseInt(draft.patientAge) || 0,
     patient_gender: draft.patientGender,
     patient_phone: draft.patientPhone,
-    chief_complaint: draft.chiefComplaint,
+
     diagnosis: draft.diagnosis,
     advice: draft.advice,
     follow_up_date: draft.followUpDate || null,
     symptoms: draft.symptoms,
-    vitals: draft.vitals,
+
     medicines: draft.medicines.map((m) => ({
       medicine_name: m.medicineName,
       type: m.type,
@@ -461,7 +459,7 @@ export async function getPrescriptionTemplates(): Promise<PrescriptionTemplate[]
 export async function savePrescriptionTemplate(data: Omit<PrescriptionTemplate, 'id' | 'createdAt'>): Promise<PrescriptionTemplate> {
   const payload = {
     name: data.name,
-    chief_complaint: data.chiefComplaint,
+
     diagnosis: data.diagnosis,
     advice: data.advice,
     symptoms: data.symptoms,

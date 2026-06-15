@@ -49,12 +49,12 @@ const emptyDraft: PrescriptionDraft = {
   patientGender: '',
   patientWeight: '',
   patientPhone: '',
-  chiefComplaint: '',
+
   diagnosis: '',
   advice: '',
   followUpDate: '',
   symptoms: [],
-  vitals: {},
+
   medicines: [],
   labTests: [],
 };
@@ -169,7 +169,7 @@ export const usePrescriptionStore = create<PrescriptionStore>((set, get) => ({
       const draft = get().currentDraft;
       const newTemplate = await DataService.savePrescriptionTemplate({
         name,
-        chiefComplaint: draft.chiefComplaint,
+
         diagnosis: draft.diagnosis,
         advice: draft.advice,
         symptoms: draft.symptoms,
@@ -199,7 +199,6 @@ export const usePrescriptionStore = create<PrescriptionStore>((set, get) => ({
     set((state) => ({
       currentDraft: {
         ...state.currentDraft,
-        chiefComplaint: template.chiefComplaint || state.currentDraft.chiefComplaint,
         diagnosis: template.diagnosis || state.currentDraft.diagnosis,
         advice: template.advice || state.currentDraft.advice,
         symptoms: [...new Set([...state.currentDraft.symptoms, ...template.symptoms])],

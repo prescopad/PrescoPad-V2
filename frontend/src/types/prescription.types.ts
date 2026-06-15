@@ -23,14 +23,6 @@ export interface PrescriptionLabTest {
   notes: string;
 }
 
-export interface Vitals {
-  bp?: string;
-  pulse?: string;
-  temperature?: string;
-  spO2?: string;
-  weight?: string;
-}
-
 export interface Prescription {
   id: string;
   patientId: string;
@@ -40,12 +32,12 @@ export interface Prescription {
   patientPhone: string;
   doctorId: string;
   doctorName?: string; // Doctor's name from JOIN
-  chiefComplaint?: string;
+
   diagnosis: string;
   advice: string;
   followUpDate: string | null;
   symptoms: string[];
-  vitals?: Vitals;
+
   pdfPath: string | null;
   pdfHash: string | null;
   signature: string | null;
@@ -63,12 +55,12 @@ export interface PrescriptionDraft {
   patientGender: string;
   patientWeight: string;
   patientPhone: string;
-  chiefComplaint: string;
+
   diagnosis: string;
   advice: string;
   followUpDate: string;
   symptoms: string[];
-  vitals: Vitals;
+
   medicines: Omit<PrescriptionMedicine, 'id' | 'prescriptionId'>[];
   labTests: Omit<PrescriptionLabTest, 'id' | 'prescriptionId'>[];
 }
@@ -76,7 +68,7 @@ export interface PrescriptionDraft {
 export interface PrescriptionTemplate {
   id: string;
   name: string;
-  chiefComplaint?: string;
+
   diagnosis: string;
   advice: string;
   symptoms: string[];
