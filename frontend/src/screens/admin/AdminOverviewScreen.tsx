@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, StatusBar, Alert, Platform,
+  View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, StatusBar, Alert, Platform, TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';

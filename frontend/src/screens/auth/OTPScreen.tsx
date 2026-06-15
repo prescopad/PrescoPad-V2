@@ -155,7 +155,7 @@ export default function OTPScreen({ navigation, route }: Props): React.JSX.Eleme
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.white },
   container: { flex: 1, backgroundColor: COLORS.white },
-  scrollContent: { flexGrow: 1, paddingTop: HEADER_PADDING_TOP, paddingBottom: SPACING.xxxl },
+  scrollContent: { flexGrow: 1, paddingBottom: SPACING.xxxl },
   backButton: { padding: SPACING.lg, paddingTop: SPACING.md },
   content: { flex: 1, paddingHorizontal: SPACING.xxl, paddingTop: SPACING.lg },
   title: { fontSize: 26, fontWeight: '800', color: COLORS.text, marginTop: SPACING.xl, marginBottom: SPACING.sm },
