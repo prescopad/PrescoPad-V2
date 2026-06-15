@@ -24,7 +24,7 @@ import { usePrescriptionStore } from '../../store/usePrescriptionStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { usePatientStore } from '../../store/usePatientStore';
 import { PrescriptionMedicine, PrescriptionLabTest } from '../../types/prescription.types';
-import { AssistantModal } from '../../components/AssistantModal';
+
 import { DoctorStackParamList } from '../../types/navigation.types';
 import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 
@@ -773,8 +773,7 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
           </KeyboardAvoidingView>
         </Modal>
 
-        {/* Assistant FAB */}
-        <AssistantModal context="consult" currentDraft={currentDraft} />
+
 
       </KeyboardAvoidingView>
     </SafeAreaView>
