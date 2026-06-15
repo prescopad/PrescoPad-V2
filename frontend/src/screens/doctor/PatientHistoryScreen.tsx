@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar,
   ActivityIndicator, FlatList, Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -10,8 +11,7 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { DoctorStackParamList } from '../../types/navigation.types';
 import { Patient } from '../../types/patient.types';
 import { Prescription } from '../../types/prescription.types';
-import { getPatientById, getPrescriptionsByPatient } from '../../services/dataService';
-import { HEADER_PADDING_TOP } from '../../utils/responsive';
+import { getPatientById, getPrescriptionsByPatient, deletePatient } from '../../services/dataService';
 
 type Props = NativeStackScreenProps<DoctorStackParamList, 'PatientHistory'>;
 
@@ -58,6 +58,30 @@ export default function PatientHistoryScreen({ navigation, route }: Props): Reac
     navigation.navigate('EditPatient', { patientId });
   };
 
+  const handleDeletePatient = () => {
+    Alert.alert(
+      'Remove Patient',
+      `Are you sure you want to remove ${patientName} from this clinic? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deletePatient(patientId);
+              Alert.alert('Done', 'Patient removed successfully.');
+              navigation.goBack();
+            } catch (e: unknown) {
+              const msg = e instanceof Error ? e.message : 'Failed to remove patient';
+              Alert.alert('Error', msg);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -68,7 +92,7 @@ export default function PatientHistoryScreen({ navigation, route }: Props): Reac
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
 
       {/* Header */}
@@ -79,9 +103,14 @@ export default function PatientHistoryScreen({ navigation, route }: Props): Reac
         <Text style={styles.headerTitle} numberOfLines={1}>
           {patientName}
         </Text>
-        <TouchableOpacity onPress={handleEditPatient} style={styles.editButton}>
-          <Ionicons name="create-outline" size={22} color={COLORS.primary} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={handleEditPatient} style={styles.editButton}>
+            <Ionicons name="create-outline" size={22} color={COLORS.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleDeletePatient} style={styles.deleteButton}>
+            <Ionicons name="trash-outline" size={20} color={COLORS.error} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -180,7 +209,7 @@ export default function PatientHistoryScreen({ navigation, route }: Props): Reac
           ))
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -189,12 +218,14 @@ const styles = StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg, paddingTop: HEADER_PADDING_TOP, paddingBottom: SPACING.md,
+    paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm, paddingBottom: SPACING.md,
     backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
   backButton: { padding: SPACING.xs },
   headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, flex: 1, textAlign: 'center' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
   editButton: { padding: SPACING.xs },
+  deleteButton: { padding: SPACING.xs },
   scrollView: { flex: 1 },
   scrollContent: { padding: SPACING.lg, paddingBottom: SPACING.xxxl },
 

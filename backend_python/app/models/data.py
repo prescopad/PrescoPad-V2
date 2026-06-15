@@ -1,17 +1,34 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Literal
 
 
 class PatientRequest(BaseModel):
-    name: str
-    age: Optional[int] = None
+    name: str = Field(..., min_length=1, max_length=120)
+    age: Optional[int] = Field(None, ge=0, le=130)
     gender: Optional[Literal["male", "female", "other"]] = None
-    weight: Optional[float] = None
-    phone: Optional[str] = None
-    address: Optional[str] = None
+    weight: Optional[float] = Field(None, ge=0.5, le=500)
+    phone: Optional[str] = Field(None, max_length=20)
+    address: Optional[str] = Field(None, max_length=500)
     blood_group: Optional[str] = None
     bloodGroup: Optional[str] = None
-    allergies: Optional[str] = None
+    allergies: Optional[str] = Field(None, max_length=300)
+
+    @field_validator('name')
+    @classmethod
+    def name_must_not_be_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError('Patient name cannot be blank')
+        return v.strip()
+
+    @field_validator('phone')
+    @classmethod
+    def phone_digits_only(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        digits = ''.join(c for c in v if c.isdigit())
+        if v and len(digits) < 7:
+            raise ValueError('Phone number must have at least 7 digits')
+        return v
 
     def normalized(self) -> dict:
         d = {k: v for k, v in {

@@ -47,30 +47,67 @@ async def update_patient(clinic_id: str, patient_id: str, data: dict) -> dict:
     return serialize_doc(patient)
 
 
+async def delete_patient(clinic_id: str, patient_id: str) -> None:
+    """Soft-delete a patient — sets is_deleted=True, does NOT remove from DB.
+
+    Raises ValueError if the patient is not found in this clinic.
+    """
+    db = get_db()
+    patient = await db.patients.find_one(
+        {"_id": ObjectId(patient_id), "clinic_id": clinic_id, "is_deleted": {"$ne": True}}
+    )
+    if not patient:
+        raise ValueError("Patient not found in this clinic")
+
+    await db.patients.update_one(
+        {"_id": ObjectId(patient_id), "clinic_id": clinic_id},
+        {"$set": {"is_deleted": True, "updated_at": datetime.now(timezone.utc)}}
+    )
+
+
+
 # ─── Queue helpers ────────────────────────────────────────────────────────────
 
 async def _enrich_queue_items(db, queue_docs: list) -> list:
-    """Join patient data into each queue item so the frontend gets full patient info."""
+    """Join patient data into each queue item using a single batch query (no N+1)."""
+    if not queue_docs:
+        return []
+
+    # Collect all unique patient IDs first
+    patient_ids = []
+    for q in queue_docs:
+        doc = serialize_doc(q)
+        pid = doc.get("patient_id")
+        if pid:
+            try:
+                patient_ids.append(ObjectId(pid))
+            except Exception:
+                pass
+
+    # Fetch ALL patients in one DB call
+    patients_map: dict = {}
+    if patient_ids:
+        async for patient in db.patients.find({"_id": {"$in": patient_ids}}):
+            patients_map[str(patient["_id"])] = patient
+
+    # Enrich each queue item using the map (O(1) lookup per item)
     result = []
     for q in queue_docs:
         doc = serialize_doc(q)
-        patient_id = doc.get("patient_id")
-        if patient_id:
-            try:
-                patient = await db.patients.find_one({"_id": ObjectId(patient_id)})
-                if patient:
-                    doc["patient_name"] = patient.get("name")
-                    doc["patient_age"] = patient.get("age")
-                    doc["patient_gender"] = patient.get("gender")
-                    doc["patient_phone"] = patient.get("phone", "")
-                    doc["patient_weight"] = patient.get("weight")
-                    doc["patient_address"] = patient.get("address", "")
-                    doc["patient_blood_group"] = patient.get("blood_group", "")
-                    doc["patient_allergies"] = patient.get("allergies", "")
-            except Exception:
-                pass
+        pid = doc.get("patient_id")
+        if pid and pid in patients_map:
+            patient = patients_map[pid]
+            doc["patient_name"] = patient.get("name")
+            doc["patient_age"] = patient.get("age")
+            doc["patient_gender"] = patient.get("gender")
+            doc["patient_phone"] = patient.get("phone", "")
+            doc["patient_weight"] = patient.get("weight")
+            doc["patient_address"] = patient.get("address", "")
+            doc["patient_blood_group"] = patient.get("blood_group", "")
+            doc["patient_allergies"] = patient.get("allergies", "")
         result.append(doc)
     return result
+
 
 
 # ─── Queue ────────────────────────────────────────────────────────────────────

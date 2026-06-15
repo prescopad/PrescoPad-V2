@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from datetime import datetime, timezone, timedelta
 
 from contextlib import asynccontextmanager
 
@@ -19,6 +20,7 @@ from app.routes import (
 )
 
 KEEPALIVE_INTERVAL_SECONDS = 14 * 60  # 14 minutes — keeps Render free-tier awake
+DRAFT_PURGE_INTERVAL_SECONDS = 6 * 60 * 60  # run every 6 hours
 
 
 async def _keepalive_loop():
@@ -35,12 +37,38 @@ async def _keepalive_loop():
         await asyncio.sleep(KEEPALIVE_INTERVAL_SECONDS)
 
 
+async def _purge_stale_drafts_loop():
+    """Delete draft prescriptions older than 24 h that were never finalized.
+
+    These accumulate when a doctor opens ConsultScreen and exits without
+    issuing a prescription. Running every 6 hours keeps the collection clean.
+    """
+    from app.config.database import get_db
+
+    await asyncio.sleep(300)  # wait 5 minutes after startup before first run
+    while True:
+        try:
+            db = get_db()
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+            result = await db.prescriptions.delete_many({
+                "status": "draft",
+                "created_at": {"$lt": cutoff},
+            })
+            if result.deleted_count > 0:
+                log.info("Purged %d stale draft prescription(s)", result.deleted_count)
+        except Exception as exc:
+            log.warning("Stale draft purge failed: %s", exc)
+        await asyncio.sleep(DRAFT_PURGE_INTERVAL_SECONDS)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await connect_db()
-    task = asyncio.create_task(_keepalive_loop())
+    keepalive_task = asyncio.create_task(_keepalive_loop())
+    purge_task = asyncio.create_task(_purge_stale_drafts_loop())
     yield
-    task.cancel()
+    keepalive_task.cancel()
+    purge_task.cancel()
     await close_db()
 
 

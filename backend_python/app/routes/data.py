@@ -74,7 +74,21 @@ async def update_patient(patient_id: str, request: Request, body: PatientRequest
         return _err(str(e), 500)
 
 
-# ─── Queue ────────────────────────────────────────────────────────────────────
+@router.delete("/patients/{patient_id}")
+async def delete_patient(patient_id: str, request: Request):
+    """Soft-delete a patient (sets is_deleted=True). Only clinic members can delete."""
+    user: TokenData = await get_current_user(request)
+    if not user.clinic_id:
+        return _err("No clinic associated", 400)
+    try:
+        await data_service.delete_patient(user.clinic_id, patient_id)
+        return _ok({"message": "Patient removed successfully"})
+    except ValueError as e:
+        return _err(str(e), 404)
+    except Exception as e:
+        return _err(str(e), 500)
+
+
 
 @router.get("/queue/today")
 async def today_queue(request: Request):

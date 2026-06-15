@@ -177,6 +177,10 @@ export async function getRecentPatients(limit = 10): Promise<Patient[]> {
   return getPatients(undefined, limit, 0);
 }
 
+export async function deletePatient(id: string): Promise<void> {
+  await api.delete(`/data/patients/${id}`);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // QUEUE
 // ═══════════════════════════════════════════════════════════════════════════════
