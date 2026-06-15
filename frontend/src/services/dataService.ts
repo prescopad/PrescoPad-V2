@@ -210,19 +210,21 @@ export async function removeFromQueue(id: string): Promise<void> {
   await api.delete(`/data/queue/${id}`);
 }
 
-export async function getQueueFiltered(options?: { status?: string; todayOnly?: boolean; limit?: number; offset?: number }): Promise<QueueItem[]> {
+export async function getQueueFiltered(options?: { status?: string; todayOnly?: boolean; date?: string; limit?: number; offset?: number }): Promise<QueueItem[]> {
   const params: Record<string, string | number | boolean> = {};
   if (options?.status) params.status = options.status;
   if (options?.todayOnly !== undefined) params.todayOnly = options.todayOnly;
+  if (options?.date) params.date = options.date;
   if (options?.limit) params.limit = options.limit;
   if (options?.offset) params.offset = options.offset;
   const res = await api.get('/data/queue/filtered', { params });
   return (res.data.queue as Record<string, unknown>[]).map(mapQueueItem);
 }
 
-export async function getQueueStatsFiltered(todayOnly?: boolean): Promise<{ total: number; waiting: number; inProgress: number; completed: number }> {
-  const params: Record<string, boolean> = {};
+export async function getQueueStatsFiltered(todayOnly?: boolean, date?: string): Promise<{ total: number; waiting: number; inProgress: number; completed: number }> {
+  const params: Record<string, boolean | string> = {};
   if (todayOnly !== undefined) params.todayOnly = todayOnly;
+  if (date !== undefined) params.date = date;
   const res = await api.get('/data/queue/stats/filtered', { params });
   const s = res.data.stats;
   return {

@@ -5,6 +5,7 @@ import * as DataService from '../services/dataService';
 interface QueueFilter {
   status?: string;
   todayOnly: boolean;
+  date?: string;
 }
 
 interface QueueStore {
@@ -19,7 +20,7 @@ interface QueueStore {
   loadQueue: () => Promise<void>;
   loadStats: () => Promise<void>;
   loadQueueFiltered: (filter?: QueueFilter) => Promise<void>;
-  loadStatsFiltered: (todayOnly?: boolean) => Promise<void>;
+  loadStatsFiltered: (todayOnly?: boolean, date?: string) => Promise<void>;
   setFilter: (filter: QueueFilter) => void;
   addToQueue: (patientId: string, addedBy: string, notes?: string) => Promise<QueueItem>;
   startConsult: (queueItemId: string) => Promise<void>;
@@ -66,6 +67,7 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
       const queueItems = await DataService.getQueueFiltered({
         status: f.status,
         todayOnly: f.todayOnly,
+        date: f.date,
       });
       const activeItem = queueItems.find((q) => q.status === QueueStatus.IN_PROGRESS) ?? null;
       set({ queueItems, activeItem });
@@ -74,10 +76,11 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
     }
   },
 
-  loadStatsFiltered: async (todayOnly) => {
+  loadStatsFiltered: async (todayOnly, date) => {
     try {
       const t = todayOnly ?? get().filter.todayOnly;
-      const stats = await DataService.getQueueStatsFiltered(t);
+      const d = date ?? get().filter.date;
+      const stats = await DataService.getQueueStatsFiltered(t, d);
       set({ stats });
     } catch {
       // keep existing stats on error
@@ -87,7 +90,7 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
   setFilter: (filter) => {
     set({ filter });
     get().loadQueueFiltered(filter);
-    get().loadStatsFiltered(filter.todayOnly);
+    get().loadStatsFiltered(filter.todayOnly, filter.date);
   },
 
   addToQueue: async (patientId, addedBy, notes) => {

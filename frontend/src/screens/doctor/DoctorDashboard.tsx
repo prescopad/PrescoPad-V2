@@ -12,7 +12,9 @@ import {
   Modal,
   SafeAreaView,
   useWindowDimensions,
+  Platform,
 } from 'react-native';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
@@ -40,21 +42,31 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
 
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'waiting' | 'in_progress' | 'completed'>('all');
-  const [showAllHistory, setShowAllHistory] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [showConsultTypeModal, setShowConsultTypeModal] = useState(false);
   const [pendingQueueItem, setPendingQueueItem] = useState<QueueItem | null>(null);
 
   const loadData = useCallback(async () => {
-    const todayOnly = !showAllHistory;
+    const todayOnly = !selectedDate;
     const status = activeTab === 'all' ? undefined : activeTab;
+    
+    // Convert local date to YYYY-MM-DD
+    let dateStr: string | undefined;
+    if (selectedDate) {
+      const offset = selectedDate.getTimezoneOffset() * 60000;
+      const localDate = new Date(selectedDate.getTime() - offset);
+      dateStr = localDate.toISOString().split('T')[0];
+    }
+    
     await Promise.all([
-      loadQueueFiltered({ status, todayOnly }),
-      loadStatsFiltered(todayOnly),
+      loadQueueFiltered({ status, todayOnly, date: dateStr }),
+      loadStatsFiltered(todayOnly, dateStr),
       loadBalance(),
       loadClinic(),
       loadDoctorProfile(),
     ]);
-  }, [loadQueueFiltered, loadStatsFiltered, loadBalance, loadClinic, loadDoctorProfile, showAllHistory, activeTab]);
+  }, [loadQueueFiltered, loadStatsFiltered, loadBalance, loadClinic, loadDoctorProfile, selectedDate, activeTab]);
 
   // Start queue polling on focus, stop on blur
   useFocusEffect(
@@ -76,13 +88,23 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
   };
 
   const handleToggleHistory = () => {
-    setShowAllHistory((prev) => !prev);
+    if (selectedDate) {
+      setSelectedDate(null);
+    } else {
+      setShowDatePicker(true);
+    }
+  };
+
+  const onDateChange = (event: DateTimePickerEvent, date?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (event.type === 'dismissed' || !date) return;
+    setSelectedDate(date);
   };
 
   // Re-load when filter or history toggle changes
   useEffect(() => {
     loadData();
-  }, [activeTab, showAllHistory, loadData]);
+  }, [activeTab, selectedDate, loadData]);
 
   const handleStartConsult = async (item: QueueItem) => {
     if (item.status === QueueStatus.COMPLETED) {
@@ -294,11 +316,13 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
 
       {/* Queue Title + History Toggle */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{t('queue.title')}</Text>
+        <Text style={styles.sectionTitle}>
+          {selectedDate ? `Patient Queue - ${selectedDate.toLocaleDateString()}` : t('queue.title')}
+        </Text>
         <TouchableOpacity style={styles.historyToggle} onPress={handleToggleHistory}>
-          <Ionicons name={showAllHistory ? 'calendar' : 'time-outline'} size={16} color={COLORS.primary} />
+          <Ionicons name={selectedDate ? 'close-circle' : 'calendar'} size={16} color={COLORS.primary} />
           <Text style={styles.historyToggleText}>
-            {showAllHistory ? 'All History' : t('common.today')}
+            {selectedDate ? 'Clear History' : 'Select Date'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -369,6 +393,17 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
               tintColor={COLORS.primary}
             />
           }
+        />
+      )}
+
+      {/* Date Picker Modal */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={selectedDate || new Date()}
+          mode="date"
+          display="default"
+          onChange={onDateChange}
+          maximumDate={new Date()}
         />
       )}
 
