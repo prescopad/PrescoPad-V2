@@ -14,6 +14,7 @@ import {
   SafeAreaView,
   useWindowDimensions,
   StatusBar,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -47,6 +48,7 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
   const [isSearching, setIsSearching] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedTests, setSelectedTests] = useState<Map<string, SelectedLabTest>>(new Map());
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
 
   // Custom test
   const [showCustomForm, setShowCustomForm] = useState(false);
@@ -290,33 +292,33 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
         {isSearching && <ActivityIndicator size="small" color={COLORS.primary} />}
       </View>
 
-      {/* Category Filter Chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoryChips}
-      >
-        {LAB_TEST_CATEGORIES.map((category) => (
-          <TouchableOpacity
-            key={category}
-            style={[
-              styles.categoryChip,
-              selectedCategory === category && styles.categoryChipSelected,
-            ]}
-            onPress={() => handleSelectCategory(category)}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.categoryChipText,
-                selectedCategory === category && styles.categoryChipTextSelected,
-              ]}
-            >
-              {category}
+      {/* Category Dropdown Selector */}
+      <View style={[styles.dropdownContainer, { marginHorizontal: width < 360 ? SPACING.md : SPACING.lg }]}>
+        <TouchableOpacity
+          style={styles.dropdownSelector}
+          onPress={() => setShowCategoryModal(true)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.dropdownLeft}>
+            <Ionicons name="funnel-outline" size={16} color={COLORS.primary} style={{ marginRight: 8 }} />
+            <Text style={styles.dropdownSelectorText}>
+              {selectedCategory ? `Category: ${selectedCategory}` : 'Filter by Category'}
             </Text>
+          </View>
+          <Ionicons name="chevron-down" size={18} color={COLORS.textMuted} />
+        </TouchableOpacity>
+        {selectedCategory && (
+          <TouchableOpacity
+            onPress={() => {
+              setSelectedCategory(null);
+              loadFrequentTests();
+            }}
+            style={styles.clearCategoryBtn}
+          >
+            <Ionicons name="close-circle" size={20} color={COLORS.error} />
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+        )}
+      </View>
 
       {/* Custom form view */}
       {showCustomForm ? (
@@ -452,6 +454,84 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
         </TouchableOpacity>
       </View>
     )}
+    {/* Category Selection Modal */}
+    <Modal
+      visible={showCategoryModal}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setShowCategoryModal(false)}
+    >
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={() => setShowCategoryModal(false)}
+      >
+        <View style={styles.modalSheet}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Select Category</Text>
+            <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
+              <Ionicons name="close" size={24} color={COLORS.text} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.modalListContent} showsVerticalScrollIndicator={false}>
+            {/* Option for Show All */}
+            <TouchableOpacity
+              style={[
+                styles.categoryModalItem,
+                selectedCategory === null && styles.categoryModalItemSelected,
+              ]}
+              onPress={() => {
+                setSelectedCategory(null);
+                loadFrequentTests();
+                setShowCategoryModal(false);
+              }}
+            >
+              <Text
+                style={[
+                  styles.categoryModalItemText,
+                  selectedCategory === null && styles.categoryModalItemTextSelected,
+                ]}
+              >
+                All Categories
+              </Text>
+              {selectedCategory === null && (
+                <Ionicons name="checkmark" size={20} color={COLORS.primary} />
+              )}
+            </TouchableOpacity>
+
+            {LAB_TEST_CATEGORIES.map((category) => {
+              const isSelected = selectedCategory === category;
+              return (
+                <TouchableOpacity
+                  key={category}
+                  style={[
+                    styles.categoryModalItem,
+                    isSelected && styles.categoryModalItemSelected,
+                  ]}
+                  onPress={() => {
+                    handleSelectCategory(category);
+                    setShowCategoryModal(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.categoryModalItemText,
+                      isSelected && styles.categoryModalItemTextSelected,
+                    ]}
+                  >
+                    {category}
+                  </Text>
+                  {isSelected && (
+                    <Ionicons name="checkmark" size={20} color={COLORS.primary} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </TouchableOpacity>
+    </Modal>
     </SafeAreaView>
   );
 }
@@ -513,31 +593,93 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
   },
 
-  // Category Chips
-  categoryChips: {
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.md,
+  // Dropdown Selector styles
+  dropdownContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
     gap: SPACING.sm,
   },
-  categoryChip: {
-    backgroundColor: COLORS.surfaceSecondary,
-    borderRadius: RADIUS.full,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    borderWidth: 1,
+  dropdownSelector: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.md,
+    borderWidth: 1.5,
     borderColor: COLORS.border,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md - 2,
+    ...SHADOWS.sm,
   },
-  categoryChipSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+  dropdownLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  categoryChipText: {
-    fontSize: 13,
+  dropdownSelectorText: {
+    fontSize: 14,
     fontWeight: '600',
     color: COLORS.textSecondary,
   },
-  categoryChipTextSelected: {
-    color: COLORS.white,
+  clearCategoryBtn: {
+    padding: SPACING.xs,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // Modal styles for category selection
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.xxl,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xl,
+    paddingBottom: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  modalListContent: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+  },
+  categoryModalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: SPACING.md + 2,
+    paddingHorizontal: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+  },
+  categoryModalItemSelected: {
+    backgroundColor: COLORS.primarySurface,
+    borderRadius: RADIUS.md,
+  },
+  categoryModalItemText: {
+    fontSize: 15,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  categoryModalItemTextSelected: {
+    color: COLORS.primary,
+    fontWeight: '700',
   },
 
   // List

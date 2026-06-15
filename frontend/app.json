@@ -4,13 +4,13 @@
     "slug": "PrescoPad",
     "version": "2.0.0",
     "orientation": "portrait",
-    "icon": "./assets/prescopad.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
     "splash": {
-      "image": "./assets/prescopad.png",
+      "image": "./assets/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0077B6"
+      "backgroundColor": "#f5f4f0"
     },
     "ios": {
       "supportsTablet": false,
@@ -22,8 +22,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/prescopad.png",
-        "backgroundColor": "#0077B6"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#f5f4f0"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.prescopad.app",
