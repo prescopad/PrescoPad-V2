@@ -164,6 +164,14 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
   const doctorName = doctorProfile?.name || user?.name || 'Doctor';
   const clinicName = clinic?.name || '';
 
+  const filteredQueueItems = queueItems.filter(item => {
+    if (activeTab === 'all') return true;
+    if (activeTab === 'waiting') return item.status === QueueStatus.WAITING;
+    if (activeTab === 'in_progress') return item.status === QueueStatus.IN_PROGRESS;
+    if (activeTab === 'completed') return item.status === QueueStatus.COMPLETED;
+    return true;
+  });
+
   const getStatusColor = (status: QueueStatus): string => {
     switch (status) {
       case QueueStatus.WAITING:
@@ -238,22 +246,23 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
               {getStatusLabel(item.status)}
             </Text>
           </View>
-          {(item.status === QueueStatus.WAITING || item.status === QueueStatus.IN_PROGRESS) && (
-            <TouchableOpacity 
-              onPress={() => handleRemoveQueueItem(item)}
-              style={{ padding: 6, marginLeft: 6 }}
-            >
-              <Ionicons name="trash-outline" size={20} color={COLORS.error} />
-            </TouchableOpacity>
-          )}
-          {isTappable && item.status !== QueueStatus.WAITING && (
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color={COLORS.textMuted}
-              style={styles.chevron}
-            />
-          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 }}>
+            {(item.status === QueueStatus.WAITING || item.status === QueueStatus.IN_PROGRESS) && (
+              <TouchableOpacity 
+                onPress={() => handleRemoveQueueItem(item)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="trash-outline" size={18} color={COLORS.error} />
+              </TouchableOpacity>
+            )}
+            {isTappable && item.status !== QueueStatus.WAITING && (
+              <Ionicons
+                name="chevron-forward"
+                size={18}
+                color={COLORS.textLight}
+              />
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -379,7 +388,7 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
         </View>
       ) : (
         <FlatList
-          data={[...queueItems].sort((a, b) => b.tokenNumber - a.tokenNumber)}
+          data={[...filteredQueueItems].sort((a, b) => b.tokenNumber - a.tokenNumber)}
           keyExtractor={(item) => item.id}
           renderItem={renderQueueItem}
           ListHeaderComponent={renderHeader}
