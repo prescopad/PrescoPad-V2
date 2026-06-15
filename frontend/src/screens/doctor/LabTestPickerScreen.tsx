@@ -28,6 +28,7 @@ import {
   addCustomLabTest,
   incrementLabTestUsage,
 } from '../../services/dataService';
+import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 import { LabTest, LAB_TEST_CATEGORIES } from '../../types/medicine.types';
 import { DoctorStackParamList } from '../../types/navigation.types';
 
@@ -100,7 +101,7 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
       } finally {
         setIsSearching(false);
       }
-    }, 200);
+    }, 50);
   }, []);
 
   const handleSelectCategory = async (category: string) => {
@@ -269,7 +270,7 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 80}
+      keyboardVerticalOffset={KEYBOARD_VERTICAL_OFFSET}
     >
     <View style={styles.innerContainer}>
       {/* Search Bar */}
@@ -434,9 +435,8 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
         </>
       )}
     </View>
-    </KeyboardAvoidingView>
 
-    {/* Bottom bar lives outside KeyboardAvoidingView so keyboard never covers it */}
+    {/* Bottom bar lives inside KeyboardAvoidingView so it gets pushed up by keyboard */}
     {selectedCount > 0 && (
       <View style={styles.bottomBar}>
         <View style={styles.selectedInfo}>
@@ -454,6 +454,8 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
         </TouchableOpacity>
       </View>
     )}
+    </KeyboardAvoidingView>
+
     {/* Category Selection Modal */}
     <Modal
       visible={showCategoryModal}

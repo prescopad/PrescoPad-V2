@@ -83,7 +83,7 @@ async def get_today_queue(clinic_id: str) -> list:
         "added_at": {"$gte": today_start},
         "is_deleted": {"$ne": True},
     }
-    docs = [q async for q in db.queue.find(query).sort("added_at", 1)]
+    docs = [q async for q in db.queue.find(query).sort("added_at", -1)]
     return await _enrich_queue_items(db, docs)
 
 

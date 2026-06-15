@@ -22,6 +22,7 @@ import { APP_CONFIG } from '../../constants/config';
 import { useWalletStore } from '../../store/useWalletStore';
 import { Transaction, TransactionType } from '../../types/wallet.types';
 import * as walletService from '../../services/walletService';
+import { HEADER_PADDING_TOP } from '../../utils/responsive';
 
 const RECHARGE_OPTIONS = [100, 500, 1000];
 
@@ -359,7 +360,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingTop: 50,
+    paddingTop: HEADER_PADDING_TOP,
     paddingBottom: SPACING.md,
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,

@@ -23,6 +23,7 @@ import { useClinicStore } from '../../store/useClinicStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { uploadImageToCloudinary } from '../../services/cloudinaryService';
 import { updateProfile as updateAuthProfile } from '../../services/authService';
+import { HEADER_PADDING_TOP, KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 
 interface ClinicProfileScreenProps {
   navigation: NativeStackNavigationProp<ParamListBase>;
@@ -192,7 +193,8 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={KEYBOARD_VERTICAL_OFFSET}
       >
         <ScrollView
           style={styles.scrollView}
@@ -406,7 +408,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingTop: 50,
+    paddingTop: HEADER_PADDING_TOP,
     paddingBottom: SPACING.md,
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,

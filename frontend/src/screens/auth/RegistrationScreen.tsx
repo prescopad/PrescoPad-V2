@@ -12,6 +12,7 @@ import { completeRegistration } from '../../services/authService';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useClinicStore } from '../../store/useClinicStore';
 import { AuthStackParamList } from '../../types/navigation.types';
+import { HEADER_PADDING_TOP, KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Registration'>;
 
@@ -80,7 +81,7 @@ export default function RegistrationScreen({ route }: Props): React.JSX.Element 
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 80}
+        keyboardVerticalOffset={KEYBOARD_VERTICAL_OFFSET}
       >
         <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
 
@@ -284,7 +285,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: SPACING.xxl,
-    paddingTop: SPACING.xxl,
+    paddingTop: HEADER_PADDING_TOP,
     paddingBottom: SPACING.xxxl,
   },
   header: {

@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, StatusBar,
-  KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
+  KeyboardAvoidingView, Platform, Alert, ActivityIndicator, ScrollView,
+  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -12,6 +13,7 @@ import { useWalletStore } from '../../store/useWalletStore';
 import { UserRole } from '../../types/auth.types';
 import { AuthStackParamList } from '../../types/navigation.types';
 import { useTranslation } from 'react-i18next';
+import { HEADER_PADDING_TOP } from '../../utils/responsive';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'OTP'>;
 
@@ -83,70 +85,79 @@ export default function OTPScreen({ navigation, route }: Props): React.JSX.Eleme
     : (isResending ? t('auth.sending') : t('auth.resend'));
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
-
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-        <Ionicons name="arrow-back" size={24} color={COLORS.text} />
-      </TouchableOpacity>
-
-      <View style={styles.content}>
-        <Ionicons name="shield-checkmark" size={48} color={COLORS.primary} />
-
-        <Text style={styles.title}>{t('auth.verifyOtp')}</Text>
-        <Text style={styles.subtitle}>
-          {t('auth.otpSentTo')}{'\n'}
-          <Text style={styles.phoneText}>+91 {phone}</Text>
-        </Text>
-
-        <TextInput
-          ref={inputRef}
-          style={styles.otpInput}
-          value={otp}
-          onChangeText={(text) => setOtp(text.replace(/[^0-9]/g, '').slice(0, 6))}
-          keyboardType="number-pad"
-          maxLength={6}
-          autoFocus
-          placeholder="- - - - - -"
-          placeholderTextColor={COLORS.textLight}
-          textAlign="center"
-        />
-
-        <TouchableOpacity
-          style={[styles.button, otp.length !== 6 && styles.buttonDisabled]}
-          onPress={handleVerify}
-          disabled={otp.length !== 6 || isLoading}
-          activeOpacity={0.8}
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {isLoading ? (
-            <ActivityIndicator color={COLORS.white} />
-          ) : (
-            <Text style={styles.buttonText}>Verify & Login</Text>
-          )}
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.resendButton}
-          onPress={handleResend}
-          disabled={resendDisabled}
-          activeOpacity={resendDisabled ? 1 : 0.6}
-        >
-          <Text style={[styles.resendText, resendDisabled && styles.resendDisabled]}>
-            {resendLabel}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+          <View style={styles.content}>
+            <Ionicons name="shield-checkmark" size={48} color={COLORS.primary} />
+
+            <Text style={styles.title}>{t('auth.verifyOtp')}</Text>
+            <Text style={styles.subtitle}>
+              {t('auth.otpSentTo')}{'\n'}
+              <Text style={styles.phoneText}>+91 {phone}</Text>
+            </Text>
+
+            <TextInput
+              ref={inputRef}
+              style={styles.otpInput}
+              value={otp}
+              onChangeText={(text) => setOtp(text.replace(/[^0-9]/g, '').slice(0, 6))}
+              keyboardType="number-pad"
+              maxLength={6}
+              autoFocus
+              placeholder="- - - - - -"
+              placeholderTextColor={COLORS.textLight}
+              textAlign="center"
+            />
+
+            <TouchableOpacity
+              style={[styles.button, otp.length !== 6 && styles.buttonDisabled]}
+              onPress={handleVerify}
+              disabled={otp.length !== 6 || isLoading}
+              activeOpacity={0.8}
+            >
+              {isLoading ? (
+                <ActivityIndicator color={COLORS.white} />
+              ) : (
+                <Text style={styles.buttonText}>Verify & Login</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.resendButton}
+              onPress={handleResend}
+              disabled={resendDisabled}
+              activeOpacity={resendDisabled ? 1 : 0.6}
+            >
+              <Text style={[styles.resendText, resendDisabled && styles.resendDisabled]}>
+                {resendLabel}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: COLORS.white },
   container: { flex: 1, backgroundColor: COLORS.white },
-  backButton: { padding: SPACING.lg, paddingTop: 50 },
-  content: { flex: 1, paddingHorizontal: SPACING.xxl, paddingTop: SPACING.xxxl },
+  scrollContent: { flexGrow: 1, paddingTop: HEADER_PADDING_TOP, paddingBottom: SPACING.xxxl },
+  backButton: { padding: SPACING.lg, paddingTop: SPACING.md },
+  content: { flex: 1, paddingHorizontal: SPACING.xxl, paddingTop: SPACING.lg },
   title: { fontSize: 26, fontWeight: '800', color: COLORS.text, marginTop: SPACING.xl, marginBottom: SPACING.sm },
   subtitle: { fontSize: 14, color: COLORS.textMuted, lineHeight: 22, marginBottom: SPACING.xxxl },
   phoneText: { fontWeight: '700', color: COLORS.text },

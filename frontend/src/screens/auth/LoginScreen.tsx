@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, StatusBar,
-  KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
+  KeyboardAvoidingView, Platform, Alert, ActivityIndicator, ScrollView,
+  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +11,7 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { sendOTP } from '../../services/authService';
 import { UserRole } from '../../types/auth.types';
 import { AuthStackParamList } from '../../types/navigation.types';
+import { HEADER_PADDING_TOP, ms } from '../../utils/responsive';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
@@ -43,89 +45,105 @@ export default function LoginScreen({ navigation, route }: Props): React.JSX.Ele
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
-
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-        <Ionicons name="arrow-back" size={24} color={COLORS.text} />
-      </TouchableOpacity>
-
-      <View style={styles.content}>
-        <View style={[styles.iconCircle, { backgroundColor: isDoctor ? COLORS.primary : '#059669' }]}>
-          <Ionicons name={icon} size={32} color={COLORS.white} />
-        </View>
-
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.subtitle}>{t('auth.enterPhoneSubtitle')}</Text>
-
-        {/* Role toggle — lets user switch without going back to landing */}
-        <View style={styles.roleToggle}>
-          <TouchableOpacity
-            style={[styles.roleToggleBtn, isDoctor && styles.roleToggleBtnActive]}
-            onPress={() => setActiveRole('doctor' as UserRole)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="medkit-outline" size={16} color={isDoctor ? COLORS.white : COLORS.textMuted} />
-            <Text style={[styles.roleToggleBtnText, isDoctor && styles.roleToggleBtnTextActive]}>Doctor</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.roleToggleBtn, !isDoctor && styles.roleToggleBtnActiveGreen]}
-            onPress={() => setActiveRole('assistant' as UserRole)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="people-outline" size={16} color={!isDoctor ? COLORS.white : COLORS.textMuted} />
-            <Text style={[styles.roleToggleBtnText, !isDoctor && styles.roleToggleBtnTextActive]}>Assistant</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.countryCode}>+91</Text>
-          <TextInput
-            style={styles.input}
-            placeholder={t('auth.enterPhoneShort')}
-            placeholderTextColor={COLORS.textLight}
-            value={phone}
-            onChangeText={(text) => setPhone(text.replace(/[^0-9]/g, '').slice(0, 10))}
-            keyboardType="phone-pad"
-            maxLength={10}
-            autoFocus
-          />
-        </View>
-
-        <TouchableOpacity
-          style={[styles.button, phone.length !== 10 && styles.buttonDisabled]}
-          onPress={handleSendOTP}
-          disabled={phone.length !== 10 || isLoading}
-          activeOpacity={0.8}
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'android' ? 0 : 0}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {isLoading ? (
-            <ActivityIndicator color={COLORS.white} />
-          ) : (
-            <Text style={styles.buttonText}>{t('auth.sendOtp')}</Text>
-          )}
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          </TouchableOpacity>
 
-      </View>
-    </KeyboardAvoidingView>
+          <View style={styles.content}>
+            <View style={[styles.iconCircle, { backgroundColor: isDoctor ? COLORS.primary : '#059669' }]}>
+              <Ionicons name={icon} size={32} color={COLORS.white} />
+            </View>
+
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.subtitle}>{t('auth.enterPhoneSubtitle')}</Text>
+
+            {/* Role toggle — lets user switch without going back to landing */}
+            <View style={styles.roleToggle}>
+              <TouchableOpacity
+                style={[styles.roleToggleBtn, isDoctor && styles.roleToggleBtnActive]}
+                onPress={() => setActiveRole('doctor' as UserRole)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="medkit-outline" size={16} color={isDoctor ? COLORS.white : COLORS.textMuted} />
+                <Text style={[styles.roleToggleBtnText, isDoctor && styles.roleToggleBtnTextActive]}>Doctor</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.roleToggleBtn, !isDoctor && styles.roleToggleBtnActiveGreen]}
+                onPress={() => setActiveRole('assistant' as UserRole)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="people-outline" size={16} color={!isDoctor ? COLORS.white : COLORS.textMuted} />
+                <Text style={[styles.roleToggleBtnText, !isDoctor && styles.roleToggleBtnTextActive]}>Assistant</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.countryCode}>+91</Text>
+              <TextInput
+                style={styles.input}
+                placeholder={t('auth.enterPhoneShort')}
+                placeholderTextColor={COLORS.textLight}
+                value={phone}
+                onChangeText={(text) => setPhone(text.replace(/[^0-9]/g, '').slice(0, 10))}
+                keyboardType="phone-pad"
+                maxLength={10}
+                autoFocus
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.button, phone.length !== 10 && styles.buttonDisabled]}
+              onPress={handleSendOTP}
+              disabled={phone.length !== 10 || isLoading}
+              activeOpacity={0.8}
+            >
+              {isLoading ? (
+                <ActivityIndicator color={COLORS.white} />
+              ) : (
+                <Text style={styles.buttonText}>{t('auth.sendOtp')}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.white,
   },
+  scrollContent: {
+    flexGrow: 1,
+    paddingTop: HEADER_PADDING_TOP,
+    paddingBottom: SPACING.xxxl,
+  },
   backButton: {
     padding: SPACING.lg,
-    paddingTop: 50,
+    paddingTop: SPACING.md,
   },
   content: {
     flex: 1,
     paddingHorizontal: SPACING.xxl,
-    paddingTop: SPACING.xxxl,
+    paddingTop: SPACING.lg,
   },
   iconCircle: {
     width: 64,
@@ -136,13 +154,13 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   title: {
-    fontSize: 26,
+    fontSize: ms(26),
     fontWeight: '800',
     color: COLORS.text,
     marginBottom: SPACING.sm,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: ms(14),
     color: COLORS.textMuted,
     marginBottom: SPACING.xxxl,
   },
@@ -172,7 +190,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#059669',
   },
   roleToggleBtnText: {
-    fontSize: 14,
+    fontSize: ms(14),
     fontWeight: '600',
     color: COLORS.textMuted,
   },
@@ -190,7 +208,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   countryCode: {
-    fontSize: 16,
+    fontSize: ms(16),
     fontWeight: '600',
     color: COLORS.text,
     marginRight: SPACING.md,
@@ -200,7 +218,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: 16,
+    fontSize: ms(16),
     color: COLORS.text,
     paddingVertical: 14,
     letterSpacing: 1,
@@ -216,8 +234,9 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    fontSize: 16,
+    fontSize: ms(16),
     fontWeight: '700',
     color: COLORS.white,
   },
 });
+

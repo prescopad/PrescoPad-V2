@@ -33,6 +33,7 @@ import { hashPDF } from '../../services/cryptoService';
 import { updateQueueStatus } from '../../services/dataService';
 import { QueueStatus } from '../../types/queue.types';
 import { DoctorStackParamList } from '../../types/navigation.types';
+import { HEADER_PADDING_TOP } from '../../utils/responsive';
 
 type Props = NativeStackScreenProps<DoctorStackParamList, 'PrescriptionPreview'>;
 
@@ -640,7 +641,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingTop: 50,
+    paddingTop: HEADER_PADDING_TOP,
     paddingBottom: SPACING.md,
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,

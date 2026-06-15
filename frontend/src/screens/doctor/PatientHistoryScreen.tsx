@@ -11,6 +11,7 @@ import { DoctorStackParamList } from '../../types/navigation.types';
 import { Patient } from '../../types/patient.types';
 import { Prescription } from '../../types/prescription.types';
 import { getPatientById, getPrescriptionsByPatient } from '../../services/dataService';
+import { HEADER_PADDING_TOP } from '../../utils/responsive';
 
 type Props = NativeStackScreenProps<DoctorStackParamList, 'PatientHistory'>;
 
@@ -188,7 +189,7 @@ const styles = StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg, paddingTop: 50, paddingBottom: SPACING.md,
+    paddingHorizontal: SPACING.lg, paddingTop: HEADER_PADDING_TOP, paddingBottom: SPACING.md,
     backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
   backButton: { padding: SPACING.xs },

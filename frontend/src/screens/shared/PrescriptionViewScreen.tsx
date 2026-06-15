@@ -9,6 +9,7 @@ import { Prescription } from '../../types/prescription.types';
 import { getPrescriptionById } from '../../services/dataService';
 import type { AssistantStackParamList } from '../../types/navigation.types';
 import PrescriptionActions from '../../components/PrescriptionActions';
+import { HEADER_PADDING_TOP } from '../../utils/responsive';
 
 type ViewRouteProp = RouteProp<AssistantStackParamList, 'PrescriptionView'>;
 
@@ -194,7 +195,7 @@ const styles = StyleSheet.create({
   loadingText: { marginTop: SPACING.md, fontSize: 14, color: COLORS.textMuted },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg, paddingTop: 50, paddingBottom: SPACING.md,
+    paddingHorizontal: SPACING.lg, paddingTop: HEADER_PADDING_TOP, paddingBottom: SPACING.md,
     backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
   backButton: { padding: SPACING.xs },

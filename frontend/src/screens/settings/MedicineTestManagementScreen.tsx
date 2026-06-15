@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { Medicine, LabTest } from '../../types/medicine.types';
 import api from '../../services/api';
+import { HEADER_PADDING_TOP } from '../../utils/responsive';
 
 interface MedicineTestManagementScreenProps {
   navigation: NativeStackNavigationProp<ParamListBase>;
@@ -524,7 +525,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingTop: 50,
+    paddingTop: HEADER_PADDING_TOP,
     paddingBottom: SPACING.md,
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,

@@ -11,6 +11,7 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { Patient, Gender, BLOOD_GROUPS, PatientFormData } from '../../types/patient.types';
 import { getPatientById, updatePatient } from '../../services/dataService';
 import type { DoctorStackParamList } from '../../types/navigation.types';
+import { HEADER_PADDING_TOP, KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 
 type EditRouteProp = RouteProp<DoctorStackParamList, 'EditPatient'>;
 
@@ -96,7 +97,7 @@ export default function PatientFormScreen(): React.JSX.Element {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 80}
+      keyboardVerticalOffset={KEYBOARD_VERTICAL_OFFSET}
     >
       <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
 
@@ -258,7 +259,7 @@ const styles = StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg, paddingTop: 50, paddingBottom: SPACING.md,
+    paddingHorizontal: SPACING.lg, paddingTop: HEADER_PADDING_TOP, paddingBottom: SPACING.md,
     backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
   backButton: { padding: SPACING.xs },

@@ -243,14 +243,18 @@ async def complete_registration(user_id: str, role: str, data: dict) -> dict:
 
         # Update clinic details if provided
         clinic_update: dict = {}
-        if data.get("clinic_name"):
-            clinic_update["name"] = data["clinic_name"]
-        if data.get("clinic_address"):
-            clinic_update["address"] = data["clinic_address"]
-        if data.get("clinic_phone"):
-            clinic_update["phone"] = data["clinic_phone"]
-        if data.get("clinic_email"):
-            clinic_update["email"] = data["clinic_email"]
+        c_name = data.get("clinic_name") or data.get("clinicName")
+        if c_name:
+            clinic_update["name"] = c_name
+        c_address = data.get("clinic_address") or data.get("clinicAddress")
+        if c_address:
+            clinic_update["address"] = c_address
+        c_phone = data.get("clinic_phone") or data.get("clinicPhone")
+        if c_phone:
+            clinic_update["phone"] = c_phone
+        c_email = data.get("clinic_email") or data.get("clinicEmail")
+        if c_email:
+            clinic_update["email"] = c_email
         if clinic_update and user.get("clinic_id"):
             clinic_update["updated_at"] = datetime.now(timezone.utc)
             await db.clinics.update_one(

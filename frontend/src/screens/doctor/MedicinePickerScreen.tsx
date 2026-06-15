@@ -33,6 +33,7 @@ import {
   DURATION_OPTIONS,
 } from '../../types/medicine.types';
 import { DoctorStackParamList } from '../../types/navigation.types';
+import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 
 type MedicinePickerScreenProps = NativeStackScreenProps<DoctorStackParamList, 'MedicinePicker'>;
 
@@ -100,7 +101,7 @@ export default function MedicinePickerScreen({ navigation }: MedicinePickerScree
       } finally {
         setIsSearching(false);
       }
-    }, 200);
+    }, 50);
   }, []);
 
   const handleSelectMedicine = (medicine: Medicine) => {
@@ -317,7 +318,7 @@ export default function MedicinePickerScreen({ navigation }: MedicinePickerScree
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 80}
+      keyboardVerticalOffset={KEYBOARD_VERTICAL_OFFSET}
     >
       {/* Search Bar */}
       <View style={styles.searchBar}>

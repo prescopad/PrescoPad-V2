@@ -18,6 +18,7 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { APP_CONFIG } from '../../constants/config';
 import { useAuthStore } from '../../store/useAuthStore';
 import { SUPPORTED_LANGUAGES, setAppLanguage, getCurrentLanguage, LanguageCode } from '../../i18n';
+import { HEADER_PADDING_TOP } from '../../utils/responsive';
 
 interface MenuItem {
   icon: keyof typeof Ionicons.glyphMap;
@@ -279,7 +280,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingTop: 50,
+    paddingTop: HEADER_PADDING_TOP,
     paddingBottom: SPACING.md,
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,

@@ -12,6 +12,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { ConnectionRequest, TeamMember, ClinicListItem, DoctorListItem } from '../../types/connection.types';
 import * as ConnectionService from '../../services/connectionService';
 import { refreshSession } from '../../services/authService';
+import { HEADER_PADDING_TOP } from '../../utils/responsive';
 
 export default function ConnectionScreen(): React.JSX.Element {
   const { t } = useTranslation();
@@ -858,7 +859,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingTop: 50,
+    paddingTop: HEADER_PADDING_TOP,
     paddingBottom: SPACING.md,
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,

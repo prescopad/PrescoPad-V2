@@ -25,6 +25,7 @@ import { useQueueStore } from '../../store/useQueueStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Gender, PatientFormData, BLOOD_GROUPS } from '../../types/patient.types';
 import type { AssistantStackParamList } from '../../types/navigation.types';
+import { HEADER_PADDING_TOP, KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 
 type NavigationProp = NativeStackNavigationProp<AssistantStackParamList>;
 
@@ -150,7 +151,7 @@ export default function AddPatientScreen(): React.JSX.Element {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 80}
+      keyboardVerticalOffset={KEYBOARD_VERTICAL_OFFSET}
     >
       <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
 
@@ -384,7 +385,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: COLORS.white,
-    paddingTop: 52,
+    paddingTop: HEADER_PADDING_TOP,
     paddingBottom: SPACING.lg,
     paddingHorizontal: SPACING.lg,
     borderBottomWidth: 1,

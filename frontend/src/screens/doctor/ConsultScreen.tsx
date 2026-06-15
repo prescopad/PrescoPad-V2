@@ -24,7 +24,9 @@ import { usePrescriptionStore } from '../../store/usePrescriptionStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { usePatientStore } from '../../store/usePatientStore';
 import { PrescriptionMedicine, PrescriptionLabTest } from '../../types/prescription.types';
+import { AssistantModal } from '../../components/AssistantModal';
 import { DoctorStackParamList } from '../../types/navigation.types';
+import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 
 type MedicineDraft = Omit<PrescriptionMedicine, 'id' | 'prescriptionId'>;
 type LabTestDraft = Omit<PrescriptionLabTest, 'id' | 'prescriptionId'>;
@@ -243,7 +245,7 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 80}
+        keyboardVerticalOffset={KEYBOARD_VERTICAL_OFFSET}
       >
         <ScrollView
           style={styles.scrollView}
@@ -520,6 +522,7 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
           <KeyboardAvoidingView
             style={styles.modalOverlay}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={KEYBOARD_VERTICAL_OFFSET}
           >
             <View style={styles.modalSheet}>
               {/* Modal Header */}
@@ -531,13 +534,11 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
               </View>
 
               {/* Selected count */}
-              {selectedSymptoms.length > 0 && (
-                <View style={styles.selectedCountRow}>
-                  <Text style={styles.selectedCountText}>
-                    {selectedSymptoms.length} selected
-                  </Text>
-                </View>
-              )}
+              <View style={[styles.selectedCountRow, { opacity: selectedSymptoms.length > 0 ? 1 : 0 }]}>
+                <Text style={styles.selectedCountText}>
+                  {selectedSymptoms.length} selected
+                </Text>
+              </View>
 
               <ScrollView
                 style={styles.modalScroll}
