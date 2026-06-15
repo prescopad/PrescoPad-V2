@@ -216,7 +216,7 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
               {getStatusLabel(item.status)}
             </Text>
           </View>
-          {item.status === QueueStatus.WAITING && (
+          {(item.status === QueueStatus.WAITING || item.status === QueueStatus.IN_PROGRESS) && (
             <TouchableOpacity 
               onPress={() => handleRemoveQueueItem(item)}
               style={{ padding: 6, marginLeft: 6 }}
