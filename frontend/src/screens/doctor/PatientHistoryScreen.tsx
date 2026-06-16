@@ -12,14 +12,19 @@ import { DoctorStackParamList } from '../../types/navigation.types';
 import { Patient } from '../../types/patient.types';
 import { Prescription } from '../../types/prescription.types';
 import { getPatientById, getPrescriptionsByPatient, deletePatient } from '../../services/dataService';
+import { useQueueStore } from '../../store/useQueueStore';
+import { useAuthStore } from '../../store/useAuthStore';
+import { ConsultTypeModal } from '../../components/ConsultTypeModal';
 
-type Props = NativeStackScreenProps<DoctorStackParamList, 'PatientHistory'>;
-
-export default function PatientHistoryScreen({ navigation, route }: Props): React.JSX.Element {
+export default function PatientHistoryScreen({ navigation, route }: any): React.JSX.Element {
   const { patientId, patientName } = route.params;
   const [patient, setPatient] = useState<Patient | null>(null);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAddingToQueue, setIsAddingToQueue] = useState(false);
+  const [showConsultModal, setShowConsultModal] = useState(false);
+  const { addToQueue } = useQueueStore();
+  const user = useAuthStore((s) => s.user);
 
   useFocusEffect(
     useCallback(() => {
@@ -58,22 +63,41 @@ export default function PatientHistoryScreen({ navigation, route }: Props): Reac
     navigation.navigate('EditPatient', { patientId });
   };
 
+  const handleAddToQueue = () => {
+    if (!user) return;
+    setShowConsultModal(true);
+  };
+
+  const processAddToQueue = async (type: 'new' | 'follow_up') => {
+    setShowConsultModal(false);
+    setIsAddingToQueue(true);
+    try {
+      await addToQueue(patientId, user!.id, undefined, type);
+      Alert.alert('Success', `${patientName} added to today's queue!`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Failed to add to queue';
+      Alert.alert('Error', msg);
+    } finally {
+      setIsAddingToQueue(false);
+    }
+  };
+
   const handleDeletePatient = () => {
     Alert.alert(
-      'Remove Patient',
-      `Are you sure you want to remove ${patientName} from this clinic? This action cannot be undone.`,
+      'Delete Patient',
+      `Are you sure you want to permanently delete ${patientName}? This will wipe their entire history, prescriptions, and queue entries. This action cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Remove',
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
               await deletePatient(patientId);
-              Alert.alert('Done', 'Patient removed successfully.');
+              Alert.alert('Done', 'Patient and all history deleted successfully.');
               navigation.goBack();
             } catch (e: unknown) {
-              const msg = e instanceof Error ? e.message : 'Failed to remove patient';
+              const msg = e instanceof Error ? e.message : 'Failed to delete patient';
               Alert.alert('Error', msg);
             }
           },
@@ -92,7 +116,7 @@ export default function PatientHistoryScreen({ navigation, route }: Props): Reac
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
 
       {/* Header */}
@@ -104,6 +128,16 @@ export default function PatientHistoryScreen({ navigation, route }: Props): Reac
           {patientName}
         </Text>
         <View style={styles.headerActions}>
+          <TouchableOpacity onPress={handleAddToQueue} style={styles.queueButton} disabled={isAddingToQueue}>
+            {isAddingToQueue ? (
+              <ActivityIndicator size="small" color={COLORS.primary} />
+            ) : (
+              <>
+                <Ionicons name="add-circle-outline" size={20} color={COLORS.primary} />
+                <Text style={styles.queueButtonText}>Queue</Text>
+              </>
+            )}
+          </TouchableOpacity>
           <TouchableOpacity onPress={handleEditPatient} style={styles.editButton}>
             <Ionicons name="create-outline" size={22} color={COLORS.primary} />
           </TouchableOpacity>
@@ -209,6 +243,14 @@ export default function PatientHistoryScreen({ navigation, route }: Props): Reac
           ))
         )}
       </ScrollView>
+
+      <ConsultTypeModal
+        visible={showConsultModal}
+        patientName={patientName}
+        onClose={() => setShowConsultModal(false)}
+        onSelectType={processAddToQueue}
+        isLoading={isAddingToQueue}
+      />
     </SafeAreaView>
   );
 }
@@ -224,6 +266,11 @@ const styles = StyleSheet.create({
   backButton: { padding: SPACING.xs },
   headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, flex: 1, textAlign: 'center' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
+  queueButton: { 
+    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primarySurface, 
+    paddingHorizontal: SPACING.sm, paddingVertical: 4, borderRadius: RADIUS.sm, gap: 4 
+  },
+  queueButtonText: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
   editButton: { padding: SPACING.xs },
   deleteButton: { padding: SPACING.xs },
   scrollView: { flex: 1 },
@@ -281,3 +328,4 @@ const styles = StyleSheet.create({
   rxViewRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: SPACING.xs },
   rxViewText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
 });
+

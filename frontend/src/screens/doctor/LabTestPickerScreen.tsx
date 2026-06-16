@@ -257,7 +257,7 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
   const selectedCount = selectedTests.size;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
     <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
     {/* Custom navigation header */}
     <View style={styles.navHeader}>
@@ -889,3 +889,4 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
   },
 });
+

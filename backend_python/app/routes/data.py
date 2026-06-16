@@ -174,7 +174,11 @@ async def add_to_queue(request: Request, body: QueueRequest):
         return _err("No clinic associated", 400)
     try:
         item = await data_service.add_to_queue(
-            user.clinic_id, user.user_id, body.get_patient_id(), body.notes
+            user.clinic_id, 
+            user.user_id, 
+            body.get_patient_id(), 
+            body.notes,
+            body.consultation_type or body.consultationType or "new"
         )
         return _ok({"item": item}, 201)
     except Exception as e:

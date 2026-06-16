@@ -19,6 +19,7 @@ import { usePatientStore } from '../../store/usePatientStore';
 import { useQueueStore } from '../../store/useQueueStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Patient } from '../../types/patient.types';
+import { ConsultTypeModal } from '../../components/ConsultTypeModal';
 
 type NavigationProp = NativeStackNavigationProp<Record<string, object | undefined>>;
 
@@ -30,6 +31,9 @@ export default function DoctorAddPatientHubScreen(): React.JSX.Element {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdding, setIsAdding] = useState<string | null>(null);
+  const [showConsultModal, setShowConsultModal] = useState(false);
+  const [pendingPatientId, setPendingPatientId] = useState<string | null>(null);
+  const [pendingPatientName, setPendingPatientName] = useState<string | null>(null);
 
   const handleSearch = useCallback(
     (text: string) => {
@@ -44,28 +48,42 @@ export default function DoctorAddPatientHubScreen(): React.JSX.Element {
   );
 
   const handleAddToQueue = useCallback(
-    async (patientId: string, patientName: string) => {
+    (patientId: string, patientName: string) => {
       if (!user) return;
-      setIsAdding(patientId);
-      try {
-        await addToQueue(patientId, user.id);
-        setSearchQuery('');
-        clearSearch();
-        Alert.alert('Added to Queue', `${patientName} has been added to the queue.`);
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : 'Failed to add to queue';
-        Alert.alert('Error', message);
-      } finally {
-        setIsAdding(null);
-      }
+      setPendingPatientId(patientId);
+      setPendingPatientName(patientName);
+      setShowConsultModal(true);
     },
-    [user, addToQueue, clearSearch],
+    [user]
   );
+
+  const processAddToQueue = async (type: 'new' | 'follow_up') => {
+    if (!user || !pendingPatientId) return;
+    setIsAdding(pendingPatientId);
+    setShowConsultModal(false);
+    try {
+      await addToQueue(pendingPatientId, user.id, undefined, type);
+      setSearchQuery('');
+      clearSearch();
+      Alert.alert('Added to Queue', `${pendingPatientName} has been added to the queue.`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to add to queue';
+      Alert.alert('Error', message);
+    } finally {
+      setIsAdding(null);
+      setPendingPatientId(null);
+      setPendingPatientName(null);
+    }
+  };
 
   const renderSearchResult = ({ item }: { item: Patient }) => {
     const adding = isAdding === item.id;
     return (
-      <View style={styles.resultCard}>
+      <TouchableOpacity 
+        style={styles.resultCard}
+        onPress={() => navigation.navigate('PatientHistory', { patientId: item.id, patientName: item.name })}
+        activeOpacity={0.7}
+      >
         <View style={styles.resultIcon}>
           <Ionicons name="person" size={18} color={COLORS.primary} />
         </View>
@@ -90,7 +108,7 @@ export default function DoctorAddPatientHubScreen(): React.JSX.Element {
             </>
           )}
         </TouchableOpacity>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -195,6 +213,18 @@ export default function DoctorAddPatientHubScreen(): React.JSX.Element {
           </View>
         )}
       </View>
+
+      <ConsultTypeModal
+        visible={showConsultModal}
+        patientName={pendingPatientName || ''}
+        onClose={() => {
+          setShowConsultModal(false);
+          setPendingPatientId(null);
+          setPendingPatientName(null);
+        }}
+        onSelectType={processAddToQueue}
+        isLoading={isAdding !== null}
+      />
     </View>
   );
 }

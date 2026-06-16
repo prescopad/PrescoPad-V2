@@ -26,6 +26,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { Gender, PatientFormData, BLOOD_GROUPS } from '../../types/patient.types';
 import type { AssistantStackParamList } from '../../types/navigation.types';
 import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
+import { ConsultTypeModal } from '../../components/ConsultTypeModal';
 
 type NavigationProp = NativeStackNavigationProp<AssistantStackParamList>;
 
@@ -55,6 +56,9 @@ export default function AddPatientScreen(): React.JSX.Element {
 
   const [errors, setErrors] = useState<Partial<Record<keyof PatientFormData, string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showConsultModal, setShowConsultModal] = useState(false);
+  const [pendingPatientId, setPendingPatientId] = useState<string | null>(null);
+  const [pendingPatientName, setPendingPatientName] = useState<string | null>(null);
 
   const updateField = (field: keyof PatientFormData, value: string | Gender) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -114,40 +118,34 @@ export default function AddPatientScreen(): React.JSX.Element {
     setIsSubmitting(true);
     try {
       const patient = await createPatient(form);
-      // Clear form immediately after successful registration
       resetForm();
-
-      Alert.alert(
-        'Patient Registered',
-        `${patient.name} has been registered successfully. Add to queue?`,
-        [
-          {
-            text: t('common.no'),
-            style: 'cancel',
-          },
-          {
-            text: 'Yes, Add to Queue',
-            onPress: async () => {
-              try {
-                await addToQueue(patient.id, user.id);
-              } catch {
-                Alert.alert(t('common.error'), 'Patient registered but failed to add to queue.');
-              }
-            },
-          },
-        ],
-      );
+      
+      setPendingPatientId(patient.id);
+      setPendingPatientName(patient.name);
+      setShowConsultModal(true);
     } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to register patient';
+      const message = error instanceof Error ? error.message : 'Failed to register patient';
       Alert.alert(t('common.error'), message);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const processAddToQueue = async (type: 'new' | 'follow_up') => {
+    if (!user || !pendingPatientId) return;
+    try {
+      setShowConsultModal(false);
+      await addToQueue(pendingPatientId, user.id, undefined, type);
+    } catch {
+      Alert.alert(t('common.error'), 'Patient registered but failed to add to queue.');
+    } finally {
+      setPendingPatientId(null);
+      setPendingPatientName(null);
+    }
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -355,18 +353,22 @@ export default function AddPatientScreen(): React.JSX.Element {
           {isSubmitting ? (
             <ActivityIndicator color={COLORS.white} />
           ) : (
-            <>
-              <Ionicons
-                name="person-add-outline"
-                size={20}
-                color={COLORS.white}
-              />
-              <Text style={styles.submitButtonText}>Register Patient</Text>
-            </>
+            <Text style={styles.submitButtonText}>Register Patient</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
+
+    <ConsultTypeModal
+      visible={showConsultModal}
+      patientName={pendingPatientName || ''}
+      onClose={() => {
+        setShowConsultModal(false);
+        setPendingPatientId(null);
+        setPendingPatientName(null);
+      }}
+      onSelectType={processAddToQueue}
+    />
     </SafeAreaView>
   );
 }

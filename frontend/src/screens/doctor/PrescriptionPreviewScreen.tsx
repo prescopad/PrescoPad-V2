@@ -192,7 +192,7 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
   const hasQR = !!doctorProfile?.signatureBase64; // reuse signatureBase64 field check; QR would be a separate field ideally
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
 
       {/* Header */}
@@ -1136,3 +1136,4 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
 });
+

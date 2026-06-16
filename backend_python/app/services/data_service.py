@@ -48,21 +48,20 @@ async def update_patient(clinic_id: str, patient_id: str, data: dict) -> dict:
 
 
 async def delete_patient(clinic_id: str, patient_id: str) -> None:
-    """Soft-delete a patient — sets is_deleted=True, does NOT remove from DB.
+    """Hard-delete a patient and all their history (queue, prescriptions, drafts).
 
     Raises ValueError if the patient is not found in this clinic.
     """
     db = get_db()
-    patient = await db.patients.find_one(
-        {"_id": ObjectId(patient_id), "clinic_id": clinic_id, "is_deleted": {"$ne": True}}
-    )
-    if not patient:
+    
+    result = await db.patients.delete_one({"_id": ObjectId(patient_id), "clinic_id": clinic_id})
+    if result.deleted_count == 0:
         raise ValueError("Patient not found in this clinic")
-
-    await db.patients.update_one(
-        {"_id": ObjectId(patient_id), "clinic_id": clinic_id},
-        {"$set": {"is_deleted": True, "updated_at": datetime.now(timezone.utc)}}
-    )
+        
+    # Delete all associated records
+    await db.queue.delete_many({"patient_id": patient_id, "clinic_id": clinic_id})
+    await db.prescriptions.delete_many({"patient_id": patient_id, "clinic_id": clinic_id})
+    await db.prescription_drafts.delete_many({"patient_id": patient_id, "clinic_id": clinic_id})
 
 
 
@@ -169,7 +168,7 @@ async def get_patient_queue_history(clinic_id: str, patient_id: str) -> list:
     return await _enrich_queue_items(db, docs)
 
 
-async def add_to_queue(clinic_id: str, user_id: str, patient_id: str, notes: str = None) -> dict:
+async def add_to_queue(clinic_id: str, user_id: str, patient_id: str, notes: str = None, consultation_type: str = "new") -> dict:
     db = get_db()
 
     # Validate patient exists in this clinic
@@ -201,6 +200,7 @@ async def add_to_queue(clinic_id: str, user_id: str, patient_id: str, notes: str
         "started_at": None,
         "completed_at": None,
         "updated_at": datetime.now(timezone.utc),
+        "consultation_type": consultation_type,
         "is_deleted": False,
     }
     result = await db.queue.insert_one(doc)
@@ -225,10 +225,38 @@ async def update_queue_status(clinic_id: str, queue_id: str, status: str) -> dic
 
 async def remove_from_queue(clinic_id: str, queue_id: str):
     db = get_db()
+    
+    q = await db.queue.find_one({"_id": ObjectId(queue_id), "clinic_id": clinic_id})
+    if not q or q.get("is_deleted"):
+        return
+        
+    token_number = q.get("token_number")
+    added_at = q.get("added_at")
+    
     await db.queue.update_one(
         {"_id": ObjectId(queue_id), "clinic_id": clinic_id},
         {"$set": {"is_deleted": True, "updated_at": datetime.now(timezone.utc)}}
     )
+    
+    if token_number and added_at:
+        today_start = added_at.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = added_at.replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        await db.queue.update_many(
+            {
+                "clinic_id": clinic_id,
+                "added_at": {"$gte": today_start, "$lte": today_end},
+                "token_number": {"$gt": token_number},
+                "is_deleted": {"$ne": True}
+            },
+            {"$inc": {"token_number": -1}}
+        )
+        
+        today_key = added_at.strftime("%Y-%m-%d")
+        await db.counters.update_one(
+            {"_id": f"queue_token:{clinic_id}:{today_key}"},
+            {"$inc": {"seq": -1}}
+        )
 
 
 # ─── Prescriptions ────────────────────────────────────────────────────────────
@@ -287,6 +315,7 @@ async def create_prescription(clinic_id: str, doctor_id: str, data: dict) -> dic
         "patient_age": data.get("patient_age"),
         "patient_gender": data.get("patient_gender"),
         "patient_phone": data.get("patient_phone"),
+        "consultation_type": data.get("consultation_type"),
         "chief_complaint": data.get("chief_complaint"),
         "diagnosis": data.get("diagnosis"),
         "advice": data.get("advice"),

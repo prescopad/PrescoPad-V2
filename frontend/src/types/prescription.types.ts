@@ -30,6 +30,7 @@ export interface Prescription {
   patientAge: number;
   patientGender: string;
   patientPhone: string;
+  consultationType?: 'new' | 'follow_up';
   doctorId: string;
   doctorName?: string; // Doctor's name from JOIN
 
@@ -55,6 +56,7 @@ export interface PrescriptionDraft {
   patientGender: string;
   patientWeight: string;
   patientPhone: string;
+  consultationType?: 'new' | 'follow_up';
 
   diagnosis: string;
   advice: string;

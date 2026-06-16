@@ -2,14 +2,14 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   TouchableOpacity,
   StyleSheet,
   StatusBar,
   ActivityIndicator,
   Alert,
-  FlatList,
+  ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
@@ -24,6 +24,7 @@ import { Patient } from '../../types/patient.types';
 import { Prescription } from '../../types/prescription.types';
 import { getPrescriptionsByPatient } from '../../services/dataService';
 import type { AssistantStackParamList } from '../../types/navigation.types';
+import { ConsultTypeModal } from '../../components/ConsultTypeModal';
 
 type NavigationProp = NativeStackNavigationProp<AssistantStackParamList>;
 type DetailRouteProp = RouteProp<AssistantStackParamList, 'PatientDetail'>;
@@ -43,6 +44,7 @@ export default function PatientDetailScreen(): React.JSX.Element {
   const [isLoadingPatient, setIsLoadingPatient] = useState(true);
   const [isLoadingRx, setIsLoadingRx] = useState(true);
   const [addingToQueue, setAddingToQueue] = useState(false);
+  const [showConsultModal, setShowConsultModal] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -75,11 +77,12 @@ export default function PatientDetailScreen(): React.JSX.Element {
     }
   };
 
-  const handleAddToQueue = async () => {
+  const processAddToQueue = async (type: 'new' | 'follow_up') => {
     if (!user || !patient) return;
+    setShowConsultModal(false);
     setAddingToQueue(true);
     try {
-      await addToQueue(patient.id, user.id);
+      await addToQueue(patient.id, user.id, undefined, type);
       Alert.alert(t('common.success'), `${patient.name} has been added to the queue.`, [
         { text: t('common.ok'), onPress: () => navigation.goBack() },
       ]);
@@ -132,7 +135,7 @@ export default function PatientDetailScreen(): React.JSX.Element {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
 
       {/* Header */}
@@ -206,7 +209,7 @@ export default function PatientDetailScreen(): React.JSX.Element {
         {/* Add to Queue Button */}
         <TouchableOpacity
           style={[styles.addQueueButton, addingToQueue && styles.addQueueButtonDisabled]}
-          onPress={handleAddToQueue}
+          onPress={() => setShowConsultModal(true)}
           disabled={addingToQueue}
           activeOpacity={0.85}
         >
@@ -309,7 +312,14 @@ export default function PatientDetailScreen(): React.JSX.Element {
           )}
         </View>
       </ScrollView>
-    </View>
+      <ConsultTypeModal
+        visible={showConsultModal}
+        patientName={patient?.name || ''}
+        onClose={() => setShowConsultModal(false)}
+        onSelectType={processAddToQueue}
+        isLoading={addingToQueue}
+      />
+    </SafeAreaView>
   );
 }
 

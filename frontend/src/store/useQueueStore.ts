@@ -22,7 +22,7 @@ interface QueueStore {
   loadQueueFiltered: (filter?: QueueFilter) => Promise<void>;
   loadStatsFiltered: (todayOnly?: boolean, date?: string) => Promise<void>;
   setFilter: (filter: QueueFilter) => void;
-  addToQueue: (patientId: string, addedBy: string, notes?: string) => Promise<QueueItem>;
+  addToQueue: (patientId: string, addedBy: string, notes?: string, consultationType?: 'new' | 'follow_up') => Promise<QueueItem>;
   startConsult: (queueItemId: string) => Promise<void>;
   completeConsult: (queueItemId: string) => Promise<void>;
   cancelQueueItem: (queueItemId: string) => Promise<void>;
@@ -93,8 +93,8 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
     get().loadStatsFiltered(filter.todayOnly, filter.date);
   },
 
-  addToQueue: async (patientId, addedBy, notes) => {
-    const item = await DataService.addToQueue(patientId, addedBy, notes);
+  addToQueue: async (patientId, addedBy, notes, consultationType) => {
+    const item = await DataService.addToQueue(patientId, addedBy, notes, consultationType);
     await get().loadQueue();
     await get().loadStats();
     return item;

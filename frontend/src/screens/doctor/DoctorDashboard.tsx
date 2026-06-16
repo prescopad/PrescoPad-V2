@@ -10,10 +10,10 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
-  SafeAreaView,
+  ,
   useWindowDimensions,
-  Platform,
-} from 'react-native';
+  Platform} from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -44,8 +44,6 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
   const [activeTab, setActiveTab] = useState<'all' | 'waiting' | 'in_progress' | 'completed'>('all');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showConsultTypeModal, setShowConsultTypeModal] = useState(false);
-  const [pendingQueueItem, setPendingQueueItem] = useState<QueueItem | null>(null);
 
   const loadData = useCallback(async () => {
     const todayOnly = !selectedDate;
@@ -121,19 +119,10 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
       navigation.navigate('Consult', { queueItem: item, patient: item.patient });
       return;
     }
-    // Show consult type modal for WAITING items
-    setPendingQueueItem(item);
-    setShowConsultTypeModal(true);
-  };
-
-  const handleConsultTypeSelected = async (type: 'new' | 'followup') => {
-    setShowConsultTypeModal(false);
-    const item = pendingQueueItem;
-    setPendingQueueItem(null);
-    if (!item || !item.patient) return;
+    // If WAITING, start the consult directly
     try {
       await startConsult(item.id);
-      navigation.navigate('Consult', { queueItem: item, patient: item.patient, consultType: type });
+      navigation.navigate('Consult', { queueItem: item, patient: item.patient, consultType: item.consultationType || 'new' });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Failed to start consultation';
       Alert.alert(t('common.error'), msg);
@@ -229,9 +218,18 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
           <Text style={styles.patientName} numberOfLines={1}>
             {patientName}
           </Text>
-          <Text style={styles.patientInfo}>
-            {patientAge} yrs / {patientGender}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
+            <Text style={styles.patientInfo}>
+              {patientAge} yrs / {patientGender}
+            </Text>
+            {item.consultationType && (
+              <View style={[styles.consultTypeBadge, { backgroundColor: item.consultationType === 'new' ? COLORS.primaryLight : COLORS.warningLight }]}>
+                <Text style={[styles.consultTypeText, { color: item.consultationType === 'new' ? COLORS.primaryDark : COLORS.warning }]}>
+                  {item.consultationType === 'new' ? 'New' : 'Follow-up'}
+                </Text>
+              </View>
+            )}
+          </View>
           {item.notes ? (
             <Text style={styles.queueNotes} numberOfLines={1}>
               {item.notes}
@@ -416,59 +414,6 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
           maximumDate={new Date()}
         />
       )}
-
-      {/* Consultation Type Modal */}
-      <Modal
-        visible={showConsultTypeModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => { setShowConsultTypeModal(false); setPendingQueueItem(null); }}
-      >
-        <View style={styles.consultModalOverlay}>
-          <View style={styles.consultModalSheet}>
-            <View style={styles.consultModalHeader}>
-              <Text style={styles.consultModalTitle}>Start Consultation</Text>
-              <TouchableOpacity onPress={() => { setShowConsultTypeModal(false); setPendingQueueItem(null); }}>
-                <Ionicons name="close" size={24} color={COLORS.text} />
-              </TouchableOpacity>
-            </View>
-            {pendingQueueItem?.patient && (
-              <Text style={styles.consultModalPatient}>{pendingQueueItem.patient.name}</Text>
-            )}
-            <Text style={styles.consultModalSubtitle}>Choose the type of visit</Text>
-
-            <TouchableOpacity
-              style={styles.consultOption}
-              onPress={() => handleConsultTypeSelected('new')}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.consultIconCircle, { backgroundColor: COLORS.successLight }]}>
-                <Ionicons name="person-add-outline" size={26} color={COLORS.success} />
-              </View>
-              <View style={styles.consultInfo}>
-                <Text style={styles.consultOptionTitle}>New Consultation</Text>
-                <Text style={styles.consultOptionSubtitle}>First visit or new complaint</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.consultOption}
-              onPress={() => handleConsultTypeSelected('followup')}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.consultIconCircle, { backgroundColor: COLORS.primarySurface }]}>
-                <Ionicons name="refresh-circle-outline" size={26} color={COLORS.primary} />
-              </View>
-              <View style={styles.consultInfo}>
-                <Text style={styles.consultOptionTitle}>Follow-up</Text>
-                <Text style={styles.consultOptionSubtitle}>Continuing treatment or review</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -716,17 +661,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.text,
   },
-  patientInfo: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  queueNotes: {
-    fontSize: 11,
-    color: COLORS.textLight,
-    fontStyle: 'italic',
-    marginTop: 2,
-  },
+  patientInfo: { fontSize: 13, color: COLORS.textMuted },
+  consultTypeBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  consultTypeText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
+  queueNotes: { fontSize: 12, color: COLORS.textLight, marginTop: 4, fontStyle: 'italic' },
   queueCardRight: {
     alignItems: 'flex-end',
     gap: SPACING.xs,
@@ -845,3 +783,4 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 });
+

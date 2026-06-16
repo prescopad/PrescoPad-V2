@@ -64,6 +64,7 @@ function DoctorPatientStack(): React.JSX.Element {
       <PatientStack.Screen name="AddPatientForm" component={AddPatientScreen} />
       <PatientStack.Screen name="PatientSearch" component={PatientSearchScreen} />
       <PatientStack.Screen name="PatientDetail" component={PatientDetailScreen} />
+      <PatientStack.Screen name="PatientHistory" component={PatientHistoryScreen} options={{ headerShown: false }} />
     </PatientStack.Navigator>
   );
 }

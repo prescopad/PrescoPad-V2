@@ -33,6 +33,7 @@ function mapQueueItem(row: Record<string, unknown>): QueueItem {
     addedBy: row.added_by as string,
     notes: (row.notes as string) ?? '',
     tokenNumber: row.token_number as number,
+    consultationType: row.consultation_type as 'new' | 'follow_up' | undefined,
     addedAt: row.added_at as string,
     startedAt: (row.started_at as string) ?? null,
     completedAt: (row.completed_at as string) ?? null,
@@ -217,8 +218,8 @@ export async function getTodayStats(): Promise<{ total: number; waiting: number;
   };
 }
 
-export async function addToQueue(patientId: string, addedBy: string, notes?: string): Promise<QueueItem> {
-  const res = await api.post('/data/queue', { patient_id: patientId, added_by: addedBy, notes: notes ?? '' });
+export async function addToQueue(patientId: string, addedBy: string, notes?: string, consultationType?: string): Promise<QueueItem> {
+  const res = await api.post('/data/queue', { patient_id: patientId, added_by: addedBy, notes: notes ?? '', consultation_type: consultationType ?? 'new' });
   return mapQueueItem(res.data.item);
 }
 

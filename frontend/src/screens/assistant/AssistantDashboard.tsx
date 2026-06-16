@@ -24,6 +24,7 @@ import { usePatientStore } from '../../store/usePatientStore';
 import api from '../../services/api';
 import { QueueItem, QueueStatus } from '../../types/queue.types';
 import type { AssistantStackParamList } from '../../types/navigation.types';
+import { ConsultTypeModal } from '../../components/ConsultTypeModal';
 
 type NavigationProp = NativeStackNavigationProp<AssistantStackParamList>;
 
@@ -52,6 +53,9 @@ export default function AssistantDashboard(): React.JSX.Element {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [showConsultModal, setShowConsultModal] = useState(false);
+  const [pendingPatientId, setPendingPatientId] = useState<string | null>(null);
+  const [pendingPatientName, setPendingPatientName] = useState<string | null>(null);
   const [showConsultTypeModal, setShowConsultTypeModal] = useState(false);
 
   const { setDoctorReady } = useQueueStore();
@@ -97,21 +101,31 @@ export default function AssistantDashboard(): React.JSX.Element {
   );
 
   const handleAddPatientFromSearch = useCallback(
-    async (patientId: string) => {
+    (patientId: string, patientName: string) => {
       if (!user) return;
-      try {
-        const { addToQueue } = useQueueStore.getState();
-        await addToQueue(patientId, user.id);
-        setSearchQuery('');
-        clearSearch();
-      } catch (error: unknown) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to add to queue';
-        console.error(message);
-      }
+      setPendingPatientId(patientId);
+      setPendingPatientName(patientName);
+      setShowConsultModal(true);
     },
-    [user, clearSearch],
+    [user]
   );
+
+  const processAdd = async (type: 'new' | 'follow_up') => {
+    if (!user || !pendingPatientId) return;
+    try {
+      setShowConsultModal(false);
+      const { addToQueue } = useQueueStore.getState();
+      await addToQueue(pendingPatientId, user.id, undefined, type);
+      setPendingPatientId(null);
+      setPendingPatientName(null);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to add to queue';
+      console.error(message);
+      setPendingPatientId(null);
+      setPendingPatientName(null);
+    }
+  };
 
   const handleRemoveQueueItem = useCallback((item: QueueItem) => {
     Alert.alert(
@@ -216,7 +230,7 @@ export default function AssistantDashboard(): React.JSX.Element {
     <TouchableOpacity
       style={styles.searchResultItem}
       activeOpacity={0.7}
-      onPress={() => handleAddPatientFromSearch(item.id)}
+      onPress={() => handleAddPatientFromSearch(item.id, item.name)}
     >
       <View style={styles.searchResultInfo}>
         <Text style={styles.searchResultName}>{item.name}</Text>
@@ -387,24 +401,16 @@ export default function AssistantDashboard(): React.JSX.Element {
               style={styles.consultOption}
               onPress={() => {
                 setShowConsultTypeModal(false);
-                const parent = navigation.getParent();
-                if (parent) {
-                  parent.dispatch(
-                    CommonActions.navigate({
-                      name: 'AddPatient',
-                      params: { screen: 'AddPatientForm' },
-                    })
-                  );
-                }
+                navigation.navigate('PatientSearch', { consultType: 'new' });
               }}
               activeOpacity={0.7}
             >
               <View style={[styles.consultIconCircle, { backgroundColor: COLORS.successLight }]}>
-                <Ionicons name="person-add-outline" size={26} color={COLORS.success} />
+                <Ionicons name="document-text-outline" size={26} color={COLORS.success} />
               </View>
               <View style={styles.consultInfo}>
-                <Text style={styles.consultOptionTitle}>New Patient</Text>
-                <Text style={styles.consultOptionSubtitle}>Register a new patient and add to queue</Text>
+                <Text style={styles.consultOptionTitle}>New Consultation</Text>
+                <Text style={styles.consultOptionSubtitle}>Search existing patient for a new consultation</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
             </TouchableOpacity>
@@ -413,7 +419,7 @@ export default function AssistantDashboard(): React.JSX.Element {
               style={styles.consultOption}
               onPress={() => {
                 setShowConsultTypeModal(false);
-                navigation.navigate('PatientSearch');
+                navigation.navigate('PatientSearch', { consultType: 'follow_up' });
               }}
               activeOpacity={0.7}
             >
@@ -422,7 +428,7 @@ export default function AssistantDashboard(): React.JSX.Element {
               </View>
               <View style={styles.consultInfo}>
                 <Text style={styles.consultOptionTitle}>Follow-up</Text>
-                <Text style={styles.consultOptionSubtitle}>Search existing patient and add to queue</Text>
+                <Text style={styles.consultOptionSubtitle}>Search existing patient for a follow up visit</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
             </TouchableOpacity>

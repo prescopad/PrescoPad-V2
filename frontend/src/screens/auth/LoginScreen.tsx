@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, StatusBar,
   KeyboardAvoidingView, Platform, Alert, ActivityIndicator, ScrollView,
-  SafeAreaView,
-} from 'react-native';
+  } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -45,7 +45,7 @@ export default function LoginScreen({ navigation, route }: Props): React.JSX.Ele
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
       <KeyboardAvoidingView
         style={styles.container}
@@ -239,4 +239,5 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
 });
+
 

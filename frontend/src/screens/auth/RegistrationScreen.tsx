@@ -77,7 +77,7 @@ export default function RegistrationScreen({ route }: Props): React.JSX.Element 
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -371,3 +371,4 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
 });
+

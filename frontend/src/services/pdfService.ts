@@ -126,7 +126,10 @@ function buildPrescriptionHTML(
     </div>
   </div>
 
-  <div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:8px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+    <span style="font-size:12px;color:#0077B6;font-weight:700;text-transform:uppercase;">
+      ${rx.consultationType === 'new' ? 'New Consultation' : rx.consultationType === 'follow_up' ? 'Follow-up' : ''}
+    </span>
     <span style="font-size:12px;color:#64748B;">Date: <strong style="color:#0F172A;">${dateStr}</strong> | ID: <strong style="color:#0077B6;">${rx.id}</strong></span>
   </div>
 
@@ -217,7 +220,11 @@ export function buildShareText(
   let text = `*Prescription - ${rx.id}*\n`;
   text += `Date: ${dateStr}\n`;
   text += `Doctor: Dr. ${doctor?.name || 'Doctor'}\n\n`;
-  text += `*Patient:* ${rx.patientName} (${rx.patientAge}/${rx.patientGender})\n\n`;
+  text += `*Patient:* ${rx.patientName} (${rx.patientAge}/${rx.patientGender})\n`;
+  if (rx.consultationType) {
+    text += `*Consultation:* ${rx.consultationType === 'new' ? 'New Consultation' : 'Follow-up'}\n`;
+  }
+  text += `\n`;
 
 
 

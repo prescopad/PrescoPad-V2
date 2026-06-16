@@ -49,6 +49,8 @@ class QueueRequest(BaseModel):
     patientId: Optional[str] = None
     notes: Optional[str] = None
     added_by: Optional[str] = None
+    consultation_type: Optional[str] = None
+    consultationType: Optional[str] = None
 
     def get_patient_id(self) -> str:
         return self.patient_id or self.patientId or ""
@@ -111,6 +113,8 @@ class PrescriptionRequest(BaseModel):
     advice: Optional[str] = None
     follow_up_date: Optional[str] = None
     followUpDate: Optional[str] = None
+    consultation_type: Optional[str] = None
+    consultationType: Optional[str] = None
     symptoms: Optional[List[str]] = []
 
     medicines: Optional[List[MedicineItem]] = []
@@ -126,7 +130,7 @@ class PrescriptionRequest(BaseModel):
             "patient_age": self.patient_age or self.patientAge,
             "patient_gender": self.patient_gender or self.patientGender,
             "patient_phone": self.patient_phone or self.patientPhone,
-
+            "consultation_type": self.consultation_type or self.consultationType,
             "diagnosis": self.diagnosis,
             "advice": self.advice,
             "follow_up_date": self.follow_up_date or self.followUpDate,

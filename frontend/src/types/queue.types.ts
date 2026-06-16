@@ -18,4 +18,5 @@ export interface QueueItem {
   startedAt: string | null;
   completedAt: string | null;
   tokenNumber: number;
+  consultationType?: 'new' | 'follow_up';
 }

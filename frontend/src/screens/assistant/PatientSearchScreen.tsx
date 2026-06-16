@@ -21,11 +21,14 @@ import { useQueueStore } from '../../store/useQueueStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Patient } from '../../types/patient.types';
 import { getRecentPatients } from '../../services/dataService';
+import { ConsultTypeModal } from '../../components/ConsultTypeModal';
 import type { AssistantStackParamList } from '../../types/navigation.types';
+import type { RouteProp } from '@react-navigation/native';
 
 type NavigationProp = NativeStackNavigationProp<AssistantStackParamList>;
+type ScreenRouteProp = RouteProp<AssistantStackParamList, 'PatientSearch'>;
 
-export default function PatientSearchScreen(): React.JSX.Element {
+export default function PatientSearchScreen({ route }: { route?: ScreenRouteProp }): React.JSX.Element {
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const { searchPatients, searchResults, clearSearch, isLoading } =
@@ -36,6 +39,10 @@ export default function PatientSearchScreen(): React.JSX.Element {
   const [query, setQuery] = useState('');
   const [recentPatients, setRecentPatients] = useState<Patient[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
+  const [showConsultModal, setShowConsultModal] = useState(false);
+  const [pendingPatientId, setPendingPatientId] = useState<string | null>(null);
+  const [pendingPatientName, setPendingPatientName] = useState<string | null>(null);
+  const [isAddingToQueue, setIsAddingToQueue] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<TextInput>(null);
 
@@ -81,33 +88,46 @@ export default function PatientSearchScreen(): React.JSX.Element {
   );
 
   const handlePatientPress = (patient: Patient) => {
+    // Navigate to patient detail
     navigation.navigate('PatientDetail', { patientId: patient.id });
   };
 
   const handleLongPress = (patient: Patient) => {
-    Alert.alert(
-      t('queue.addToQueue'),
-      `Add ${patient.name} to today's queue?`,
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('queue.addToQueue'),
-          onPress: async () => {
-            if (!user) return;
-            try {
-              await addToQueue(patient.id, user.id);
-              Alert.alert(t('common.success'), `${patient.name} added to queue.`);
-            } catch (error: unknown) {
-              const message =
-                error instanceof Error
-                  ? error.message
-                  : 'Failed to add to queue';
-              Alert.alert(t('common.error'), message);
-            }
-          },
-        },
-      ],
-    );
+    handleAddToQueue(patient.id, patient.name);
+  };
+
+  const handleAddToQueue = (patientId: string, patientName: string) => {
+    if (!user) return;
+    
+    // If consultType was provided from the dashboard FAB, bypass the modal
+    if (route?.params?.consultType) {
+      setPendingPatientId(patientId);
+      setPendingPatientName(patientName);
+      processAddToQueue(route.params.consultType);
+      return;
+    }
+    
+    setPendingPatientId(patientId);
+    setPendingPatientName(patientName);
+    setShowConsultModal(true);
+  };
+
+  const processAddToQueue = async (type: 'new' | 'follow_up') => {
+    if (!user || !pendingPatientId) return;
+    try {
+      setShowConsultModal(false);
+      setIsAddingToQueue(true);
+      await addToQueue(pendingPatientId, user.id, undefined, type);
+      Alert.alert(t('common.success'), `${pendingPatientName} added to queue.`);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to add to queue';
+      Alert.alert(t('common.error'), message);
+    } finally {
+      setIsAddingToQueue(false);
+      setPendingPatientId(null);
+      setPendingPatientName(null);
+    }
   };
 
   const formatLastVisit = (dateStr: string): string => {
@@ -277,6 +297,17 @@ export default function PatientSearchScreen(): React.JSX.Element {
         ListEmptyComponent={renderEmptyState}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+      />
+      <ConsultTypeModal
+        visible={showConsultModal}
+        patientName={pendingPatientName || ''}
+        onClose={() => {
+          setShowConsultModal(false);
+          setPendingPatientId(null);
+          setPendingPatientName(null);
+        }}
+        onSelectType={processAddToQueue}
+        isLoading={isAddingToQueue}
       />
     </View>
   );

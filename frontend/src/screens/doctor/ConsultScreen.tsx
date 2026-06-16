@@ -89,6 +89,7 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
       patientGender: initialPatient?.gender || '',
       patientWeight: initialPatient?.weight?.toString() || '',
       patientPhone: initialPatient?.phone || '',
+      consultationType: queueItem.consultationType,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -234,7 +235,7 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
   const selectedSymptoms = currentDraft.symptoms || [];
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
       {/* Custom header replaces native RN header to avoid double-bar on Android */}
       <View style={styles.navHeader}>
@@ -1218,3 +1219,4 @@ const styles = StyleSheet.create({
     padding: SPACING.xs,
   },
 });
+
