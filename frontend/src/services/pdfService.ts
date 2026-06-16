@@ -1,14 +1,55 @@
 import * as Print from 'expo-print';
 import { File, Directory, Paths } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Prescription } from '../types/prescription.types';
 import { Clinic, DoctorProfile } from '../types/clinic.types';
+
+async function getBase64FromUrl(url: string): Promise<string | null> {
+  try {
+    if (!url) return null;
+    if (url.startsWith('data:')) return url;
+    if (url.startsWith('M') || url.startsWith('m')) return url;
+
+    const tempFilename = `temp_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const localUri = `${FileSystem.cacheDirectory}${tempFilename}`;
+
+    const downloadResult = await FileSystem.downloadAsync(url, localUri);
+    if (downloadResult.status !== 200) {
+      return null;
+    }
+
+    const base64 = await FileSystem.readAsStringAsync(localUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    await FileSystem.deleteAsync(localUri, { idempotent: true });
+
+    let mimeType = 'image/jpeg';
+    if (url.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+    else if (url.toLowerCase().endsWith('.gif')) mimeType = 'image/gif';
+    else if (url.toLowerCase().endsWith('.svg')) mimeType = 'image/svg+xml';
+
+    return `data:${mimeType};base64,${base64}`;
+  } catch (e) {
+    console.error('Failed to get base64 from url:', e);
+    return null;
+  }
+}
 
 export async function generatePrescriptionPDF(
   prescription: Prescription,
   clinic: Clinic | null,
   doctor: DoctorProfile | null,
 ): Promise<string> {
-  const html = buildPrescriptionHTML(prescription, clinic, doctor);
+  let signatureBase64 = prescription.signature;
+  if (signatureBase64 && (signatureBase64.startsWith('http://') || signatureBase64.startsWith('https://'))) {
+    const converted = await getBase64FromUrl(signatureBase64);
+    if (converted) {
+      signatureBase64 = converted;
+    }
+  }
+  const rxForPdf = { ...prescription, signature: signatureBase64 };
+  const html = buildPrescriptionHTML(rxForPdf, clinic, doctor);
   const { uri } = await Print.printToFileAsync({ html, width: 595, height: 842 });
 
   // Move to permanent location — filename: Date_of_Visit_Name_of_Patient
@@ -45,7 +86,15 @@ export async function printPrescription(
   clinic: Clinic | null,
   doctor: DoctorProfile | null,
 ): Promise<void> {
-  const html = buildPrescriptionHTML(prescription, clinic, doctor);
+  let signatureBase64 = prescription.signature;
+  if (signatureBase64 && (signatureBase64.startsWith('http://') || signatureBase64.startsWith('https://'))) {
+    const converted = await getBase64FromUrl(signatureBase64);
+    if (converted) {
+      signatureBase64 = converted;
+    }
+  }
+  const rxForPrint = { ...prescription, signature: signatureBase64 };
+  const html = buildPrescriptionHTML(rxForPrint, clinic, doctor);
   await Print.printAsync({ html });
 }
 

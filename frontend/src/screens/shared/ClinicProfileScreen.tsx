@@ -18,6 +18,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ParamListBase } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
+import Svg, { Path } from 'react-native-svg';
+import * as FileSystem from 'expo-file-system/legacy';
+import SecureStore from '../../utils/secureStore';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { useClinicStore } from '../../store/useClinicStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -25,6 +28,8 @@ import { uploadImageToCloudinary } from '../../services/cloudinaryService';
 import { updateProfile as updateAuthProfile } from '../../services/authService';
 import { HEADER_PADDING_TOP, KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+
+const SIG_FILE_URI = `${FileSystem.documentDirectory}doctor_signature.svg`;
 
 interface ClinicProfileScreenProps {
   navigation: NativeStackNavigationProp<ParamListBase>;
@@ -55,13 +60,13 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
   const [regNumber, setRegNumber] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Digital signature (Cloudinary URL) — lives on the authenticated user record.
-  const [signatureUrl, setSignatureUrl] = useState<string>(user?.signatureUrl || '');
+  // Digital signature (Cloudinary URL or SVG coordinates)
+  const [signatureUrl, setSignatureUrl] = useState<string>(doctorProfile?.signatureBase64 || '');
   const [isUploadingSig, setIsUploadingSig] = useState(false);
 
   useEffect(() => {
-    setSignatureUrl(user?.signatureUrl || '');
-  }, [user?.signatureUrl]);
+    setSignatureUrl(doctorProfile?.signatureBase64 || '');
+  }, [doctorProfile?.signatureBase64]);
 
   const handlePickSignature = async () => {
     if (!canEdit) return;
@@ -72,7 +77,7 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
         return;
       }
       const picked = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: [ImagePicker.MediaType.IMAGE],
         allowsEditing: true,
         aspect: [4, 1],
         quality: 0.9,
@@ -90,6 +95,19 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
       if (auth.accessToken && auth.refreshToken) {
         await auth.setUser(updatedUser, auth.accessToken, auth.refreshToken);
       }
+      
+      // Clear local drawn signature cache so the new uploaded image is used
+      await SecureStore.deleteItemAsync('doctorSignature');
+      try {
+        await FileSystem.deleteAsync(SIG_FILE_URI, { idempotent: true });
+      } catch {}
+
+      // Update doctorProfile in store
+      useClinicStore.getState().setDoctorProfile({
+        ...doctorProfile!,
+        signatureBase64: uploaded.secure_url,
+      });
+
       setSignatureUrl(uploaded.secure_url);
       Alert.alert(t('common.success'), t('signature.saved'));
     } catch (e) {
@@ -113,6 +131,19 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
             if (auth.accessToken && auth.refreshToken) {
               await auth.setUser(updatedUser, auth.accessToken, auth.refreshToken);
             }
+            
+            // Clear local signature files and store cache
+            await SecureStore.deleteItemAsync('doctorSignature');
+            try {
+              await FileSystem.deleteAsync(SIG_FILE_URI, { idempotent: true });
+            } catch {}
+
+            // Update doctorProfile in store
+            useClinicStore.getState().setDoctorProfile({
+              ...doctorProfile!,
+              signatureBase64: null,
+            });
+
             setSignatureUrl('');
           } catch (e) {
             Alert.alert(t('common.error'), e instanceof Error ? e.message : t('common.somethingWrong'));
@@ -334,7 +365,20 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
                 <Text style={[styles.label, { marginBottom: SPACING.sm }]}>{t('signature.hint')}</Text>
                 {signatureUrl ? (
                   <View style={styles.sigPreviewBox}>
-                    <Image source={{ uri: signatureUrl }} style={styles.sigPreviewImage} resizeMode="contain" />
+                    {signatureUrl.startsWith('M') ? (
+                      <Svg width={150} height={50} viewBox="0 0 300 100">
+                        <Path
+                          d={signatureUrl}
+                          stroke={COLORS.text}
+                          strokeWidth={4.5}
+                          fill="none"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </Svg>
+                    ) : (
+                      <Image source={{ uri: signatureUrl }} style={styles.sigPreviewImage} resizeMode="contain" />
+                    )}
                   </View>
                 ) : (
                   <View style={[styles.sigPreviewBox, styles.sigPreviewEmpty]}>

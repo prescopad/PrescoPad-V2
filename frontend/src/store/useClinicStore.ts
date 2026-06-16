@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import SecureStore from '../utils/secureStore';
 import { Clinic, DoctorProfile } from '../types/clinic.types';
 import api from '../services/api';
