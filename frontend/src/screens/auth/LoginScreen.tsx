@@ -49,7 +49,8 @@ export default function LoginScreen({ navigation, route }: Props): React.JSX.Ele
       <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        enabled={Platform.OS === 'ios'}
         keyboardVerticalOffset={Platform.OS === 'android' ? 0 : 0}
       >
         <ScrollView

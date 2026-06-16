@@ -227,7 +227,11 @@ export default function AdminClinicsScreen(): React.JSX.Element {
 
       {/* Add/Edit Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          enabled={Platform.OS === 'ios'}
+          style={styles.modalOverlay}
+        >
           <View style={[styles.modalSheet, { paddingBottom: insets.bottom + SPACING.lg }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editingClinic ? 'Edit Clinic' : 'Add Clinic'}</Text>

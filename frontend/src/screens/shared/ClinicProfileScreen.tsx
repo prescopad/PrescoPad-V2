@@ -24,12 +24,14 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { uploadImageToCloudinary } from '../../services/cloudinaryService';
 import { updateProfile as updateAuthProfile } from '../../services/authService';
 import { HEADER_PADDING_TOP, KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 
 interface ClinicProfileScreenProps {
   navigation: NativeStackNavigationProp<ParamListBase>;
 }
 
 export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenProps): React.JSX.Element {
+  const keyboardHeight = useKeyboardHeight();
   const {
     clinic,
     doctorProfile,
@@ -193,12 +195,16 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        enabled={Platform.OS === 'ios'}
         keyboardVerticalOffset={KEYBOARD_VERTICAL_OFFSET}
       >
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            Platform.OS === 'android' && keyboardHeight > 0 && { paddingBottom: keyboardHeight + 100 }
+          ]}
           keyboardShouldPersistTaps="handled"
         >
           {/* Restriction Banner for Assistants */}

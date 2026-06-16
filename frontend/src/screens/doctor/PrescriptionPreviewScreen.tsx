@@ -409,7 +409,8 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
       >
         <KeyboardAvoidingView
           style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          enabled={Platform.OS === 'ios'}
         >
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>

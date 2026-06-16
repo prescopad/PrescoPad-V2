@@ -317,7 +317,8 @@ export default function MedicinePickerScreen({ navigation }: MedicinePickerScree
     </View>
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      enabled={Platform.OS === 'ios'}
       keyboardVerticalOffset={KEYBOARD_VERTICAL_OFFSET}
     >
       {/* Search Bar */}

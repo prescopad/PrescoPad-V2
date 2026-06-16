@@ -13,10 +13,12 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useClinicStore } from '../../store/useClinicStore';
 import { AuthStackParamList } from '../../types/navigation.types';
 import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Registration'>;
 
 export default function RegistrationScreen({ route }: Props): React.JSX.Element {
+  const keyboardHeight = useKeyboardHeight();
   const { t } = useTranslation();
   const { role } = route.params;
   const isDoctor = role === 'doctor';
@@ -80,13 +82,17 @@ export default function RegistrationScreen({ route }: Props): React.JSX.Element 
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        enabled={Platform.OS === 'ios'}
         keyboardVerticalOffset={KEYBOARD_VERTICAL_OFFSET}
       >
         <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
 
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            Platform.OS === 'android' && keyboardHeight > 0 && { paddingBottom: keyboardHeight + SPACING.xxxl }
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

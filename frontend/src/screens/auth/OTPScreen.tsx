@@ -14,12 +14,14 @@ import { UserRole } from '../../types/auth.types';
 import { AuthStackParamList } from '../../types/navigation.types';
 import { useTranslation } from 'react-i18next';
 import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'OTP'>;
 
 const RESEND_COOLDOWN_SECONDS = 30;
 
 export default function OTPScreen({ navigation, route }: Props): React.JSX.Element {
+  const keyboardHeight = useKeyboardHeight();
   const { phone, role } = route.params;
   const { t } = useTranslation();
   const [otp, setOtp] = useState('');
@@ -89,10 +91,14 @@ export default function OTPScreen({ navigation, route }: Props): React.JSX.Eleme
       <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        enabled={Platform.OS === 'ios'}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            Platform.OS === 'android' && keyboardHeight > 0 && { paddingBottom: keyboardHeight + SPACING.xxxl }
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

@@ -10,9 +10,9 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
-  ,
   useWindowDimensions,
-  Platform} from 'react-native'
+  Platform
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
@@ -48,7 +48,7 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
   const loadData = useCallback(async () => {
     const todayOnly = !selectedDate;
     const status = activeTab === 'all' ? undefined : activeTab;
-    
+
     // Convert local date to YYYY-MM-DD
     let dateStr: string | undefined;
     if (selectedDate) {
@@ -56,7 +56,7 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
       const localDate = new Date(selectedDate.getTime() - offset);
       dateStr = localDate.toISOString().split('T')[0];
     }
-    
+
     await Promise.all([
       loadQueueFiltered({ status, todayOnly, date: dateStr }),
       loadStatsFiltered(todayOnly, dateStr),
@@ -135,8 +135,8 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
       'Are you sure you want to remove this patient from the queue?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Remove', 
+        {
+          text: 'Remove',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -246,7 +246,7 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 }}>
             {(item.status === QueueStatus.WAITING || item.status === QueueStatus.IN_PROGRESS) && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => handleRemoveQueueItem(item)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >

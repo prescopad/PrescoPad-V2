@@ -269,7 +269,8 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
     </View>
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      enabled={Platform.OS === 'ios'}
       keyboardVerticalOffset={KEYBOARD_VERTICAL_OFFSET}
     >
     <View style={styles.innerContainer}>

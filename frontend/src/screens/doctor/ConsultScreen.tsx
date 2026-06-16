@@ -256,7 +256,8 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
       </View>
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        enabled={Platform.OS === 'ios'}
         keyboardVerticalOffset={KEYBOARD_VERTICAL_OFFSET}
       >
         <ScrollView
@@ -533,7 +534,8 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
         >
           <KeyboardAvoidingView
             style={styles.modalOverlay}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            enabled={Platform.OS === 'ios'}
             keyboardVerticalOffset={KEYBOARD_VERTICAL_OFFSET}
           >
             <View style={styles.modalSheet}>
@@ -624,7 +626,8 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
         >
           <KeyboardAvoidingView
             style={styles.modalOverlay}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            enabled={Platform.OS === 'ios'}
           >
             <View style={[styles.modalSheet, { maxHeight: '80%', minHeight: '60%' }]}>
               <View style={styles.modalHeader}>

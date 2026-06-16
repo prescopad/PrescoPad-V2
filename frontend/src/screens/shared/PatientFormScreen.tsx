@@ -12,10 +12,12 @@ import { Patient, Gender, BLOOD_GROUPS, PatientFormData } from '../../types/pati
 import { getPatientById, updatePatient } from '../../services/dataService';
 import type { DoctorStackParamList } from '../../types/navigation.types';
 import { HEADER_PADDING_TOP, KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 
 type EditRouteProp = RouteProp<DoctorStackParamList, 'EditPatient'>;
 
 export default function PatientFormScreen(): React.JSX.Element {
+  const keyboardHeight = useKeyboardHeight();
   const navigation = useNavigation();
   const route = useRoute<EditRouteProp>();
   const { t } = useTranslation();
@@ -96,7 +98,8 @@ export default function PatientFormScreen(): React.JSX.Element {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      enabled={Platform.OS === 'ios'}
       keyboardVerticalOffset={KEYBOARD_VERTICAL_OFFSET}
     >
       <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
@@ -112,7 +115,10 @@ export default function PatientFormScreen(): React.JSX.Element {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          Platform.OS === 'android' && keyboardHeight > 0 && { paddingBottom: keyboardHeight + 40 }
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         {/* Name */}

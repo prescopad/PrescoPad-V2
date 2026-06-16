@@ -27,11 +27,13 @@ import { Gender, PatientFormData, BLOOD_GROUPS } from '../../types/patient.types
 import type { AssistantStackParamList } from '../../types/navigation.types';
 import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 import { ConsultTypeModal } from '../../components/ConsultTypeModal';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 
 type NavigationProp = NativeStackNavigationProp<AssistantStackParamList>;
 
 export default function AddPatientScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  const keyboardHeight = useKeyboardHeight();
   const navigation = useNavigation<NavigationProp>();
   const { width } = useWindowDimensions();
   const GENDER_OPTIONS: { label: string; value: Gender }[] = [
@@ -148,7 +150,8 @@ export default function AddPatientScreen(): React.JSX.Element {
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      enabled={Platform.OS === 'ios'}
       keyboardVerticalOffset={KEYBOARD_VERTICAL_OFFSET}
     >
       <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
@@ -167,7 +170,10 @@ export default function AddPatientScreen(): React.JSX.Element {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          Platform.OS === 'android' && keyboardHeight > 0 && { paddingBottom: keyboardHeight + 40 }
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
