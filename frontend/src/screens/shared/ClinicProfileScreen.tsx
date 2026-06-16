@@ -64,6 +64,10 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
   const [signatureUrl, setSignatureUrl] = useState<string>(doctorProfile?.signatureBase64 || '');
   const [isUploadingSig, setIsUploadingSig] = useState(false);
 
+  // Clinic QR Code URL
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>(clinic?.qrCodeUrl || '');
+  const [isUploadingQr, setIsUploadingQr] = useState(false);
+
   useEffect(() => {
     setSignatureUrl(doctorProfile?.signatureBase64 || '');
   }, [doctorProfile?.signatureBase64]);
@@ -77,7 +81,7 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
         return;
       }
       const picked = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: [ImagePicker.MediaType.IMAGE],
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 1],
         quality: 0.9,
@@ -153,6 +157,64 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
     ]);
   };
 
+  const handlePickQrCode = async () => {
+    if (!canEdit) return;
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(t('common.error'), 'Permission to access media library is required to upload QR code.');
+        return;
+      }
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.9,
+      });
+      if (picked.canceled || !picked.assets?.[0]?.uri) return;
+
+      setIsUploadingQr(true);
+      const uploaded = await uploadImageToCloudinary(picked.assets[0].uri, {
+        filename: `qr_${clinic?.id || 'clinic'}.jpg`,
+      });
+
+      // Persist to backend immediately (like signature)
+      await updateClinic({ qrCodeUrl: uploaded.secure_url });
+      setQrCodeUrl(uploaded.secure_url);
+      Alert.alert(t('common.success'), 'QR code uploaded successfully!');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : t('common.somethingWrong');
+      Alert.alert(t('common.error'), msg);
+    } finally {
+      setIsUploadingQr(false);
+    }
+  };
+
+  const handleRemoveQrCode = async () => {
+    if (!canEdit) return;
+    Alert.alert(
+      'Remove QR Code',
+      'Are you sure you want to remove the QR code image?',
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await updateClinic({ qrCodeUrl: null });
+              setQrCodeUrl('');
+              Alert.alert(t('common.success'), 'QR code removed.');
+            } catch (error: unknown) {
+              const msg = error instanceof Error ? error.message : t('common.somethingWrong');
+              Alert.alert(t('common.error'), msg);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   useEffect(() => {
     loadClinic();
     loadDoctorProfile();
@@ -164,6 +226,7 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
       setAddress(clinic.address || '');
       setPhone(clinic.phone || '');
       setEmail(clinic.email || '');
+      setQrCodeUrl(clinic.qrCodeUrl || '');
     }
   }, [clinic]);
 
@@ -409,6 +472,55 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
                       style={styles.sigRemoveBtn}
                       onPress={handleRemoveSignature}
                       disabled={isUploadingSig}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="trash-outline" size={18} color={COLORS.error} />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
+
+              <View style={styles.sectionHeader}>
+                <Ionicons name="qr-code-outline" size={20} color={COLORS.primary} />
+                <Text style={styles.sectionTitle}>Clinic QR Code</Text>
+              </View>
+              <View style={styles.card}>
+                <Text style={[styles.label, { marginBottom: SPACING.sm }]}>
+                  Upload a payment or clinic website QR code to display on prescriptions.
+                </Text>
+                {qrCodeUrl ? (
+                  <View style={styles.sigPreviewBox}>
+                    <Image source={{ uri: qrCodeUrl }} style={styles.sigPreviewImage} resizeMode="contain" />
+                  </View>
+                ) : (
+                  <View style={[styles.sigPreviewBox, styles.sigPreviewEmpty]}>
+                    <Ionicons name="qr-code-outline" size={32} color={COLORS.textLight} />
+                    <Text style={styles.sigPreviewEmptyText}>No QR code uploaded yet</Text>
+                  </View>
+                )}
+                <View style={styles.sigButtonRow}>
+                  <TouchableOpacity
+                    style={[styles.sigButton, isUploadingQr && styles.buttonDisabled]}
+                    onPress={handlePickQrCode}
+                    disabled={isUploadingQr}
+                    activeOpacity={0.7}
+                  >
+                    {isUploadingQr ? (
+                      <ActivityIndicator color={COLORS.white} />
+                    ) : (
+                      <>
+                        <Ionicons name="cloud-upload-outline" size={18} color={COLORS.white} />
+                        <Text style={styles.sigButtonText}>
+                          {qrCodeUrl ? 'Replace QR Code' : 'Upload QR Code'}
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                  {qrCodeUrl ? (
+                    <TouchableOpacity
+                      style={styles.sigRemoveBtn}
+                      onPress={handleRemoveQrCode}
+                      disabled={isUploadingQr}
                       activeOpacity={0.7}
                     >
                       <Ionicons name="trash-outline" size={18} color={COLORS.error} />

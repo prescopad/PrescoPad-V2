@@ -5,8 +5,8 @@
  * name and preset come from Expo extra config (or constants if you prefer to
  * hardcode for now). If either is missing, upload fails clearly.
  */
-const CLOUD_NAME = 'dkyby5fyw';
-const UPLOAD_PRESET = 'itzjvzjx';
+const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dkyby5fyw';
+const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'itzjvzjx';
 
 export interface CloudinaryUploadResult {
   secure_url: string;

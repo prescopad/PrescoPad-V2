@@ -72,6 +72,7 @@ class CompleteRegistrationRequest(BaseModel):
 
 class UpdateProfileRequest(BaseModel):
     name: Optional[str] = None
+    phone: Optional[str] = None
     specialty: Optional[str] = None
     reg_number: Optional[str] = None
     regNumber: Optional[str] = None
@@ -89,6 +90,8 @@ class UpdateProfileRequest(BaseModel):
         d = {}
         if self.name is not None:
             d["name"] = self.name
+        if self.phone is not None:
+            d["phone"] = self.phone
         if self.specialty is not None:
             d["specialty"] = self.specialty
         rn = self.reg_number or self.regNumber

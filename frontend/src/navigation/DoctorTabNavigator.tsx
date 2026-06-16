@@ -32,6 +32,7 @@ import ClinicProfileScreen from '../screens/shared/ClinicProfileScreen';
 import ConnectionScreen from '../screens/shared/ConnectionScreen';
 import PatientFormScreen from '../screens/shared/PatientFormScreen';
 import MedicineTestManagementScreen from '../screens/settings/MedicineTestManagementScreen';
+import UserProfileScreen from '../screens/shared/UserProfileScreen';
 
 const Tab = createBottomTabNavigator();
 const QueueStack = createNativeStackNavigator<DoctorStackParamList>();
@@ -90,6 +91,7 @@ function DoctorSettingsStack(): React.JSX.Element {
   return (
     <SettingsStack.Navigator screenOptions={{ headerShown: false }}>
       <SettingsStack.Screen name="SettingsMain" component={SettingsScreen} />
+      <SettingsStack.Screen name="UserProfile" component={UserProfileScreen} options={{ headerShown: false }} />
       <SettingsStack.Screen name="ClinicProfile" component={ClinicProfileScreen} options={{ headerShown: false }} />
       <SettingsStack.Screen name="ConnectionSettings" component={ConnectionScreen} options={{ headerShown: false }} />
       <SettingsStack.Screen name="MedicineTestManagement" component={MedicineTestManagementScreen} options={{ headerShown: false }} />

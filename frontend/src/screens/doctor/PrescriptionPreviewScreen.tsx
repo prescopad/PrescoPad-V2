@@ -45,7 +45,7 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
   const { width } = useWindowDimensions();
   const { currentPrescription, loadPrescription, finalizePrescription } = usePrescriptionStore();
   const { canAfford, loadBalance, balance } = useWalletStore();
-  const { clinic, doctorProfile } = useClinicStore();
+  const { clinic, doctorProfile, loadClinic, loadDoctorProfile } = useClinicStore();
   const { user } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
@@ -66,6 +66,8 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
     if (prescriptionId) {
       loadPrescription(prescriptionId);
     }
+    loadClinic();
+    loadDoctorProfile();
   }, [prescriptionId]);
 
   const rx = currentPrescription;
@@ -515,9 +517,9 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
             </View>
 
             <View style={styles.qrContainer}>
-              {doctorProfile?.signatureBase64 ? (
+              {clinic?.qrCodeUrl ? (
                 <Image
-                  source={{ uri: doctorProfile.signatureBase64 }}
+                  source={{ uri: clinic.qrCodeUrl }}
                   style={styles.qrImage}
                   resizeMode="contain"
                 />

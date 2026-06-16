@@ -263,6 +263,9 @@ async def complete_registration(user_id: str, role: str, data: dict) -> dict:
             )
     else:
         update["specialty"] = data.get("qualification")
+        update["experience_years"] = data.get("experience_years")
+        update["city"] = data.get("city")
+        update["address"] = data.get("address")
         if data.get("password"):
             update["password_hash"] = hash_password(data["password"])
 
@@ -301,6 +304,14 @@ async def get_me(user_id: str, role: str) -> dict:
 async def update_profile(user_id: str, role: str, data: dict) -> dict:
     db = get_db()
     col = get_user_collection(db, role)
+
+    # If phone is being changed, ensure no other user of same role has it
+    new_phone = data.get("phone")
+    if new_phone:
+        existing = await col.find_one({"phone": new_phone, "_id": {"$ne": ObjectId(user_id)}})
+        if existing:
+            raise ValueError("Phone number is already registered to another account.")
+
     update = {k: v for k, v in data.items() if v is not None}
     update["updated_at"] = datetime.now(timezone.utc)
     await col.update_one({"_id": ObjectId(user_id)}, {"$set": update})

@@ -54,6 +54,7 @@ export const useClinicStore = create<ClinicStore>((set, get) => ({
             phone: c.phone || '',
             email: c.email || '',
             logoBase64: c.logo_url || c.logoBase64 || null,
+            qrCodeUrl: c.qr_code_url || c.qrCodeUrl || null,
             ownerId: c.owner_id || '',
           },
         });
@@ -127,6 +128,7 @@ export const useClinicStore = create<ClinicStore>((set, get) => ({
     if (data.phone !== undefined) payload.phone = data.phone;
     if (data.email !== undefined) payload.email = data.email;
     if (data.logoBase64 !== undefined) payload.logo_url = data.logoBase64;
+    if (data.qrCodeUrl !== undefined) payload.qr_code_url = data.qrCodeUrl;
 
     await api.put('/clinic', payload);
     set({ clinic: { ...current, ...data } });

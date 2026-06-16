@@ -23,6 +23,12 @@ function normalizeUser(u: Record<string, unknown>): User {
     isProfileComplete: Boolean(u.is_profile_complete ?? u.isProfileComplete ?? false),
     soloMode: Boolean(u.solo_mode ?? u.soloMode ?? false),
     signatureUrl: (u.signature_url ?? u.signatureUrl ?? undefined) as string | undefined,
+    specialty: (u.specialty ?? undefined) as string | undefined,
+    regNumber: (u.reg_number ?? u.regNumber ?? undefined) as string | undefined,
+    qualification: (u.qualification ?? undefined) as string | undefined,
+    experienceYears: (u.experience_years ?? u.experienceYears ?? undefined) as number | undefined,
+    city: (u.city ?? undefined) as string | undefined,
+    address: (u.address ?? undefined) as string | undefined,
     createdAt: (u.created_at ?? u.createdAt ?? '') as string,
   };
 }
@@ -61,6 +67,10 @@ export async function updateProfile(data: {
   phone?: string;
   specialty?: string;
   regNumber?: string;
+  qualification?: string;
+  experienceYears?: number;
+  city?: string;
+  address?: string;
   signatureUrl?: string;
 }): Promise<User> {
   const response = await api.put('/auth/profile', data);

@@ -5,6 +5,7 @@ export interface Clinic {
   phone: string;
   email: string;
   logoBase64: string | null;
+  qrCodeUrl: string | null;
   ownerId: string;
 }
 

@@ -130,6 +130,8 @@ async def update_profile(request: Request, body: UpdateProfileRequest):
     try:
         result = await auth_service.update_profile(user.user_id, user.role, body.normalized())
         return _ok({"user": result, "message": "Profile updated"})
+    except ValueError as e:
+        return _err(str(e), 400)
     except Exception as e:
         return _err(str(e), 500)
 

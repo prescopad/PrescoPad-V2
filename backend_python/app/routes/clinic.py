@@ -62,7 +62,7 @@ async def upsert_clinic(request: Request, body: ClinicRequest):
     user: TokenData = await require_doctor(request)
     try:
         clinic = await clinic_service.create_or_update_clinic(
-            user.user_id, user.clinic_id, body.model_dump(exclude_none=True)
+            user.user_id, user.clinic_id, body.normalized()
         )
         return _ok({"clinic": clinic, "message": "Clinic saved"})
     except Exception as e:

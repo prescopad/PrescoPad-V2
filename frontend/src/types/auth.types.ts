@@ -18,6 +18,13 @@ export interface User {
   /** Cloudinary URL of the doctor's digital signature image (PNG/JPG).
    * Embedded into prescription PDFs when present. */
   signatureUrl?: string;
+  // Profile fields from registration
+  specialty?: string;
+  regNumber?: string;
+  qualification?: string;
+  experienceYears?: number;
+  city?: string;
+  address?: string;
   createdAt: string;
 }
 

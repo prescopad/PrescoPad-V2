@@ -48,8 +48,17 @@ export async function generatePrescriptionPDF(
       signatureBase64 = converted;
     }
   }
+
+  let clinicQrBase64 = clinic?.qrCodeUrl || null;
+  if (clinicQrBase64 && (clinicQrBase64.startsWith('http://') || clinicQrBase64.startsWith('https://'))) {
+    const converted = await getBase64FromUrl(clinicQrBase64);
+    if (converted) {
+      clinicQrBase64 = converted;
+    }
+  }
+
   const rxForPdf = { ...prescription, signature: signatureBase64 };
-  const html = buildPrescriptionHTML(rxForPdf, clinic, doctor);
+  const html = buildPrescriptionHTML(rxForPdf, clinic, doctor, clinicQrBase64);
   const { uri } = await Print.printToFileAsync({ html, width: 595, height: 842 });
 
   // Move to permanent location — filename: Date_of_Visit_Name_of_Patient
@@ -93,15 +102,25 @@ export async function printPrescription(
       signatureBase64 = converted;
     }
   }
+
+  let clinicQrBase64 = clinic?.qrCodeUrl || null;
+  if (clinicQrBase64 && (clinicQrBase64.startsWith('http://') || clinicQrBase64.startsWith('https://'))) {
+    const converted = await getBase64FromUrl(clinicQrBase64);
+    if (converted) {
+      clinicQrBase64 = converted;
+    }
+  }
+
   const rxForPrint = { ...prescription, signature: signatureBase64 };
-  const html = buildPrescriptionHTML(rxForPrint, clinic, doctor);
+  const html = buildPrescriptionHTML(rxForPrint, clinic, doctor, clinicQrBase64);
   await Print.printAsync({ html });
 }
 
 function buildPrescriptionHTML(
   rx: Prescription,
   clinic: Clinic | null,
-  doctor: DoctorProfile | null
+  doctor: DoctorProfile | null,
+  clinicQrBase64: string | null = null
 ): string {
   const clinicName = clinic?.name || 'PrescoPad Clinic';
   const clinicAddress = clinic?.address || '';
@@ -239,17 +258,25 @@ function buildPrescriptionHTML(
   <div class="follow-up">Follow-up: ${new Date(rx.followUpDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
   ` : ''}
 
-  <div class="signature-section">
-    ${rx.signature && rx.signature.startsWith('M') ? `
-      <svg width="150" height="50" viewBox="0 0 300 100" style="display: block; margin-left: auto; margin-bottom: 4px;">
-        <path d="${rx.signature}" stroke="#0F172A" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
-    ` : rx.signature ? `
-      <img src="${rx.signature}" class="signature-img" />
-    ` : ''}
-    <div class="signature-line">
-      <div style="font-size:12px;font-weight:600;">Dr. ${doctorName}</div>
-      ${doctorReg ? `<div style="font-size:10px;color:#64748B;">Reg. No: ${doctorReg}</div>` : ''}
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:30px;">
+    <div style="text-align:left;">
+      ${clinicQrBase64 ? `
+        <img src="${clinicQrBase64}" style="max-height:80px;max-width:80px;margin-bottom:4px;" />
+        <div style="font-size:9px;color:#64748B;">Scan for Payment / Details</div>
+      ` : ''}
+    </div>
+    <div class="signature-section" style="margin-top:0;text-align:right;">
+      ${rx.signature && rx.signature.startsWith('M') ? `
+        <svg width="150" height="50" viewBox="0 0 300 100" style="display: block; margin-left: auto; margin-bottom: 4px;">
+          <path d="${rx.signature}" stroke="#0F172A" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      ` : rx.signature ? `
+        <img src="${rx.signature}" class="signature-img" />
+      ` : ''}
+      <div class="signature-line">
+        <div style="font-size:12px;font-weight:600;">Dr. ${doctorName}</div>
+        ${doctorReg ? `<div style="font-size:10px;color:#64748B;">Reg. No: ${doctorReg}</div>` : ''}
+      </div>
     </div>
   </div>
 

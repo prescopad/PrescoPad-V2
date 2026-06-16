@@ -52,4 +52,5 @@ export type SharedStackParamList = {
   Settings: undefined;
   ClinicProfile: undefined;
   MedicineTestManagement: undefined;
+  UserProfile: undefined;
 };

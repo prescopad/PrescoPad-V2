@@ -85,6 +85,13 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps): Rea
 
   const menuItems: MenuItem[] = [
     {
+      icon: 'person-circle-outline',
+      label: 'My Profile',
+      subtitle: 'Update your name, phone, and professional details',
+      onPress: () => navigation.navigate('UserProfile'),
+      showArrow: true,
+    },
+    {
       icon: 'business-outline',
       label: t('settings.clinicProfile'),
       subtitle: 'Manage clinic and doctor information',
@@ -194,8 +201,12 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps): Rea
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Profile Header */}
-        <View style={styles.profileSection}>
+        {/* Profile Header - tappable to edit */}
+        <TouchableOpacity
+          style={styles.profileSection}
+          onPress={() => navigation.navigate('UserProfile')}
+          activeOpacity={0.8}
+        >
           <View style={styles.avatarCircle}>
             <Text style={styles.avatarText}>{initials}</Text>
           </View>
@@ -217,7 +228,10 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps): Rea
             </View>
             <Text style={styles.phoneText}>{user?.phone || ''}</Text>
           </View>
-        </View>
+          <View style={styles.editProfileBtn}>
+            <Ionicons name="create-outline" size={18} color={COLORS.primary} />
+          </View>
+        </TouchableOpacity>
 
         {/* Menu Items */}
         <View style={styles.menuSection}>
@@ -314,6 +328,14 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
     marginBottom: SPACING.xl,
     ...SHADOWS.md,
+  },
+  editProfileBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.primarySurface,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   avatarCircle: {
     width: 64,
