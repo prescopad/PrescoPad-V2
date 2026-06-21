@@ -73,6 +73,7 @@ export default function PrescriptionActions({ prescription, show, layout = 'row'
       const isLocalHostOrIp = /localhost|127\.0\.0\.1|^192\.168\.|^10\./i.test(hostPart);
       if (isLocalHostOrIp) {
         cleanBaseUrl = PRODUCTION_BACKEND_URL.replace(/\/api\/?$/, '');
+        console.log(`[PrescoPad] Local IP detected (${hostPart}). Falling back to public Render domain for WhatsApp share link: ${cleanBaseUrl}`);
       }
 
       const downloadUrl = `${cleanBaseUrl}/rx/${share_token}`;
