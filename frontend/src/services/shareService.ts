@@ -36,7 +36,7 @@ export async function shareRxOnWhatsApp(
   if (phone) {
     const cleaned = phone.replace(/\D/g, '');
     const number = cleaned.startsWith('91') ? cleaned : `91${cleaned}`;
-    const url = `whatsapp://send?phone=${number}&text=${encodeURIComponent(message)}`;
+    const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
     
     const canOpen = await Linking.canOpenURL(url);
     if (!canOpen) {

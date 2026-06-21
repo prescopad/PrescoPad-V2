@@ -293,6 +293,20 @@ async def finalize_prescription(prescription_id: str, request: Request, body: Fi
         return _err(str(e), 500)
 
 
+@router.post("/prescriptions/{prescription_id}/share")
+async def share_prescription(prescription_id: str, request: Request):
+    user: TokenData = await get_current_user(request)
+    if not user.clinic_id:
+        return _err("No clinic associated", 400)
+    try:
+        token_info = await data_service.get_or_create_share_token(user.clinic_id, prescription_id)
+        return _ok(token_info)
+    except ValueError as e:
+        return _err(str(e), 404)
+    except Exception as e:
+        return _err(str(e), 500)
+
+
 # ─── Custom Medicines ─────────────────────────────────────────────────────────
 
 @router.get("/custom-medicines/frequent")

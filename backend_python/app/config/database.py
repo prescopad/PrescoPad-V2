@@ -86,6 +86,7 @@ async def _create_indexes(db: AsyncIOMotorDatabase):
     await db.prescriptions.create_index([("clinic_id", 1), ("patient_id", 1), ("created_at", -1)])
     await db.prescriptions.create_index("created_at")
     await db.prescriptions.create_index("transcript_id", sparse=True)
+    await db.prescriptions.create_index("share_token", unique=True, sparse=True)
 
     await db.queue.create_index("clinic_id")
     await db.queue.create_index("patient_id")

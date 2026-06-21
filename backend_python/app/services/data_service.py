@@ -1,9 +1,10 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from bson import ObjectId
 from app.config.database import get_db
 from app.models.common import serialize_doc
 import uuid
+import secrets
 
 
 # ─── Patients ────────────────────────────────────────────────────────────────
@@ -539,3 +540,42 @@ async def save_prescription_template(clinic_id: str, data: dict) -> dict:
 async def delete_prescription_template(clinic_id: str, template_id: str):
     db = get_db()
     await db.prescription_templates.delete_one({"_id": ObjectId(template_id), "clinic_id": clinic_id})
+
+
+async def get_or_create_share_token(clinic_id: str, prescription_id: str) -> dict:
+    db = get_db()
+    rx = await db.prescriptions.find_one({"_id": prescription_id, "clinic_id": clinic_id, "is_deleted": {"$ne": True}})
+    if not rx:
+        raise ValueError("Prescription not found")
+
+    token = rx.get("share_token")
+    expires_at = rx.get("share_token_expires_at")
+
+    if token and expires_at:
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at > datetime.now(timezone.utc):
+            return {"share_token": token, "share_token_expires_at": expires_at.isoformat()}
+
+    # Generate a fresh token
+    new_token = secrets.token_urlsafe(24)
+    new_expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+
+    await db.prescriptions.update_one(
+        {"_id": prescription_id, "clinic_id": clinic_id},
+        {"$set": {
+            "share_token": new_token,
+            "share_token_expires_at": new_expires_at,
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    return {"share_token": new_token, "share_token_expires_at": new_expires_at.isoformat()}
+
+
+async def get_prescription_by_share_token(share_token: str) -> dict | None:
+    db = get_db()
+    rx = await db.prescriptions.find_one({"share_token": share_token, "is_deleted": {"$ne": True}})
+    if not rx:
+        return None
+    return serialize_doc(rx)
+

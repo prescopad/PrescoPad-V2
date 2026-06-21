@@ -5,9 +5,10 @@ from datetime import datetime, timezone, timedelta
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse
+from bson import ObjectId
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -102,6 +103,106 @@ app.include_router(data.router)
 app.include_router(notification.router)
 app.include_router(analytics.router)
 app.include_router(admin.router)
+
+
+DOWNLOAD_LIMITS = {}
+
+
+@app.get("/rx/{share_token}")
+async def download_prescription(share_token: str, request: Request):
+    # 1. Rate limiting by IP
+    client_ip = request.client.host if request.client else "unknown"
+    now = datetime.now(timezone.utc)
+    
+    # Clean up old rate limit items
+    for ip in list(DOWNLOAD_LIMITS.keys()):
+        if now - DOWNLOAD_LIMITS[ip]["time"] > timedelta(minutes=1):
+            DOWNLOAD_LIMITS.pop(ip, None)
+            
+    limits = DOWNLOAD_LIMITS.setdefault(client_ip, {"count": 0, "time": now})
+    if now - limits["time"] > timedelta(minutes=1):
+        limits["count"] = 0
+        limits["time"] = now
+        
+    limits["count"] += 1
+    if limits["count"] > 10:
+        return HTMLResponse(
+            content="<h3>Too many requests. Please try again in a minute.</h3>",
+            status_code=429
+        )
+        
+    # 2. Look up prescription by share_token
+    from app.config.database import get_db
+    db = get_db()
+    rx = await db.prescriptions.find_one({"share_token": share_token, "is_deleted": {"$ne": True}})
+    if not rx:
+        return HTMLResponse(
+            content="<h3>Link invalid or prescription not found.</h3>",
+            status_code=404
+        )
+        
+    # 3. Check expiry
+    expires_at = rx.get("share_token_expires_at")
+    if expires_at:
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at < now:
+            return HTMLResponse(
+                content="""
+                <html>
+                <head>
+                    <title>Prescription Expired</title>
+                    <style>
+                        body { font-family: Helvetica, Arial, sans-serif; text-align: center; padding-top: 100px; color: #333; }
+                        h2 { color: #DC2626; }
+                        p { font-size: 16px; color: #666; }
+                    </style>
+                </head>
+                <body>
+                    <h2>Prescription Link Expired</h2>
+                    <p>This prescription download link has expired (valid for 7 days).</p>
+                    <p>Please contact your clinic or doctor to resend the prescription.</p>
+                </body>
+                </html>
+                """,
+                status_code=400
+            )
+            
+    # 4. Fetch clinic and doctor details
+    clinic_doc = None
+    doctor_doc = None
+    if rx.get("clinic_id"):
+        try:
+            clinic_doc = await db.clinics.find_one({"_id": ObjectId(rx["clinic_id"])})
+        except Exception:
+            pass
+    if rx.get("doctor_id"):
+        try:
+            doctor_doc = await db.doctors.find_one({"_id": ObjectId(rx["doctor_id"])})
+        except Exception:
+            pass
+            
+    # 5. Generate PDF in-memory
+    from app.services.pdf_generator import generate_prescription_pdf
+    try:
+        pdf_bytes = await generate_prescription_pdf(rx, clinic_doc, doctor_doc)
+    except Exception as e:
+        log.error("Failed to generate PDF on the fly: %s", e)
+        return HTMLResponse(
+            content="<h3>Failed to generate prescription PDF. Please contact clinic support.</h3>",
+            status_code=500
+        )
+        
+    # 6. Stream the PDF
+    import io
+    filename = f"prescription_{rx['_id']}.pdf"
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )
 
 
 @app.get("/api/health")

@@ -20,6 +20,9 @@ import { useClinicStore } from '../store/useClinicStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { generatePrescriptionPDF, printPrescription, buildShareText } from '../services/pdfService';
 import { exportPDFCopy, shareRxOnWhatsApp, shareViaPDF } from '../services/shareService';
+import { getShareToken } from '../services/dataService';
+import { BASE_URL } from '../services/api';
+import { PRODUCTION_BACKEND_URL } from '../constants/config';
 
 interface Props {
   prescription: Prescription | null;
@@ -56,54 +59,47 @@ export default function PrescriptionActions({ prescription, show, layout = 'row'
       return;
     }
 
-    Alert.alert(
-      'Share Prescription',
-      'Select how you would like to share the prescription:',
-      [
-        {
-          text: 'Send Text',
-          onPress: async () => {
-            setBusy('whatsapp');
-            try {
-              const fullText = buildShareText(prescription, doctorProfile);
-              await shareRxOnWhatsApp(fullText, prescription.patientPhone);
-            } catch (e) {
-              const msg = e instanceof Error ? e.message : t('common.somethingWrong');
-              Alert.alert(t('common.error'), msg);
-            } finally {
-              setBusy(null);
-            }
-          },
-        },
-        {
-          text: 'Send PDF',
-          onPress: async () => {
-            setBusy('whatsapp');
-            try {
-              const message = t('share.defaultMessage', {
-                patient: prescription.patientName,
-                clinic: clinic?.name || 'PrescoPad',
-              });
-              // Step 1: Open direct WhatsApp chat with patient's pre-filled text message
-              await shareRxOnWhatsApp(message, prescription.patientPhone);
-              setWaStep('text_sent');
-              setShowSuccessOverlay(true);
-            } catch (e) {
-              const msg = e instanceof Error ? e.message : t('common.somethingWrong');
-              const looksLikeMissingWA = msg.toLowerCase().includes('whatsapp');
-              Alert.alert(t('common.error'), looksLikeMissingWA ? t('share.whatsappMissing') : msg);
-            } finally {
-              setBusy(null);
-            }
-          },
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ],
-      { cancelable: true }
-    );
+    setBusy('whatsapp');
+    try {
+      // 1. Fetch the share token from backend
+      const { share_token } = await getShareToken(prescription.id);
+
+      // 2. Build download URL
+      let cleanBaseUrl = BASE_URL.replace(/\/api\/?$/, '');
+
+      // Check for local IP pattern / localhost and automatically fallback to Render domain
+      const parsedUrlMatch = cleanBaseUrl.match(/^(https?:\/\/)?([^\/:]+)(:\d+)?/i);
+      const hostPart = parsedUrlMatch ? parsedUrlMatch[2] : '';
+      const isLocalHostOrIp = /localhost|127\.0\.0\.1|^192\.168\.|^10\./i.test(hostPart);
+      if (isLocalHostOrIp) {
+        cleanBaseUrl = PRODUCTION_BACKEND_URL.replace(/\/api\/?$/, '');
+      }
+
+      const downloadUrl = `${cleanBaseUrl}/rx/${share_token}`;
+
+      // 3. Build personalized message (URL isolated on its own line, no trailing punctuation)
+      const docName = doctorProfile?.name || user?.name || 'Doctor';
+      const clinicName = clinic?.name || 'PrescoPad';
+      const message =
+        `Namaste ${prescription.patientName}, this is Dr. ${docName} from ${clinicName}.\n\n` +
+        `Your prescription is ready. Tap below to download:\n\n` +
+        `${downloadUrl}\n\n` +
+        `This link will remain valid for 7 days.`;
+
+      // Log the exact message preview for debugging/pasting
+      console.log(`[PrescoPad WhatsApp Message Preview]:\n${message}`);
+
+      // 4. Open direct WhatsApp chat with patient's pre-filled text message
+      await shareRxOnWhatsApp(message, prescription.patientPhone);
+      setWaStep('completed');
+      setShowSuccessOverlay(true);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : t('common.somethingWrong');
+      const looksLikeMissingWA = msg.toLowerCase().includes('whatsapp');
+      Alert.alert(t('common.error'), looksLikeMissingWA ? t('share.whatsappMissing') : msg);
+    } finally {
+      setBusy(null);
+    }
   };
 
   const handleDownload = async () => {

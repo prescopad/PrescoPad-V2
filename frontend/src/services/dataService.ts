@@ -486,3 +486,8 @@ export async function savePrescriptionTemplate(data: Omit<PrescriptionTemplate, 
 export async function deletePrescriptionTemplate(id: string): Promise<void> {
   await api.delete(`/data/templates/${id}`);
 }
+
+export async function getShareToken(prescriptionId: string): Promise<{ share_token: string; share_token_expires_at: string }> {
+  const res = await api.post(`/data/prescriptions/${prescriptionId}/share`);
+  return res.data;
+}
