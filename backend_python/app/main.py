@@ -110,99 +110,132 @@ DOWNLOAD_LIMITS = {}
 
 @app.get("/rx/{share_token}")
 async def download_prescription(share_token: str, request: Request):
-    # 1. Rate limiting by IP
-    client_ip = request.client.host if request.client else "unknown"
+    import io
+    import traceback
+    from app.config.database import get_db
+    from app.services.pdf_generator import generate_prescription_pdf
+
+    # ── Rate limiting by IP ──────────────────────────────────────────────
+    try:
+        client_ip = request.client.host if request.client else "unknown"
+    except Exception:
+        client_ip = "unknown"
+
     now = datetime.now(timezone.utc)
-    
-    # Clean up old rate limit items
+
     for ip in list(DOWNLOAD_LIMITS.keys()):
         if now - DOWNLOAD_LIMITS[ip]["time"] > timedelta(minutes=1):
             DOWNLOAD_LIMITS.pop(ip, None)
-            
+
     limits = DOWNLOAD_LIMITS.setdefault(client_ip, {"count": 0, "time": now})
     if now - limits["time"] > timedelta(minutes=1):
         limits["count"] = 0
         limits["time"] = now
-        
+
     limits["count"] += 1
     if limits["count"] > 10:
         return HTMLResponse(
             content="<h3>Too many requests. Please try again in a minute.</h3>",
-            status_code=429
+            status_code=429,
         )
-        
-    # 2. Look up prescription by share_token
-    from app.config.database import get_db
-    db = get_db()
-    rx = await db.prescriptions.find_one({"share_token": share_token, "is_deleted": {"$ne": True}})
-    if not rx:
-        return HTMLResponse(
-            content="<h3>Link invalid or prescription not found.</h3>",
-            status_code=404
-        )
-        
-    # 3. Check expiry
-    expires_at = rx.get("share_token_expires_at")
-    if expires_at:
-        if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=timezone.utc)
-        if expires_at < now:
-            return HTMLResponse(
-                content="""
-                <html>
-                <head>
-                    <title>Prescription Expired</title>
-                    <style>
-                        body { font-family: Helvetica, Arial, sans-serif; text-align: center; padding-top: 100px; color: #333; }
-                        h2 { color: #DC2626; }
-                        p { font-size: 16px; color: #666; }
-                    </style>
-                </head>
-                <body>
-                    <h2>Prescription Link Expired</h2>
-                    <p>This prescription download link has expired (valid for 7 days).</p>
-                    <p>Please contact your clinic or doctor to resend the prescription.</p>
-                </body>
-                </html>
-                """,
-                status_code=400
-            )
-            
-    # 4. Fetch clinic and doctor details
-    clinic_doc = None
-    doctor_doc = None
-    if rx.get("clinic_id"):
-        try:
-            clinic_doc = await db.clinics.find_one({"_id": ObjectId(rx["clinic_id"])})
-        except Exception:
-            pass
-    if rx.get("doctor_id"):
-        try:
-            doctor_doc = await db.doctors.find_one({"_id": ObjectId(rx["doctor_id"])})
-        except Exception:
-            pass
-            
-    # 5. Generate PDF in-memory
-    from app.services.pdf_generator import generate_prescription_pdf
+
     try:
-        pdf_bytes = await generate_prescription_pdf(rx, clinic_doc, doctor_doc)
-    except Exception as e:
-        log.error("Failed to generate PDF on the fly: %s", e)
-        return HTMLResponse(
-            content="<h3>Failed to generate prescription PDF. Please contact clinic support.</h3>",
-            status_code=500
+        # ── Look up prescription by share_token ──────────────────────────
+        db = get_db()
+        rx = await db.prescriptions.find_one(
+            {"share_token": share_token, "is_deleted": {"$ne": True}}
         )
-        
-    # 6. Stream the PDF
-    import io
-    filename = f"prescription_{rx['_id']}.pdf"
-    return StreamingResponse(
-        io.BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"'
-        }
-    )
+        if not rx:
+            return HTMLResponse(
+                content="<h3>Link invalid or prescription not found.</h3>",
+                status_code=404,
+            )
+
+        # ── Check expiry ─────────────────────────────────────────────────
+        expires_at = rx.get("share_token_expires_at")
+        if expires_at:
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            if expires_at < now:
+                return HTMLResponse(
+                    content="""
+                    <html>
+                    <head>
+                        <title>Prescription Expired</title>
+                        <style>
+                            body { font-family: Helvetica, Arial, sans-serif; text-align: center; padding-top: 100px; color: #333; }
+                            h2 { color: #DC2626; }
+                            p { font-size: 16px; color: #666; }
+                        </style>
+                    </head>
+                    <body>
+                        <h2>Prescription Link Expired</h2>
+                        <p>This prescription download link has expired (valid for 7 days).</p>
+                        <p>Please contact your clinic or doctor to resend the prescription.</p>
+                    </body>
+                    </html>
+                    """,
+                    status_code=400,
+                )
+
+        # ── Fetch clinic and doctor details ───────────────────────────────
+        clinic_doc = None
+        doctor_doc = None
+
+        clinic_id_raw = rx.get("clinic_id")
+        if clinic_id_raw:
+            try:
+                cid = ObjectId(clinic_id_raw) if not isinstance(clinic_id_raw, ObjectId) else clinic_id_raw
+                clinic_doc = await db.clinics.find_one({"_id": cid})
+            except Exception as e:
+                log.warning("Could not fetch clinic for rx %s: %s", rx["_id"], e)
+
+        doctor_id_raw = rx.get("doctor_id")
+        if doctor_id_raw:
+            try:
+                did = ObjectId(doctor_id_raw) if not isinstance(doctor_id_raw, ObjectId) else doctor_id_raw
+                doctor_doc = await db.doctors.find_one({"_id": did})
+            except Exception as e:
+                log.warning("Could not fetch doctor for rx %s: %s", rx["_id"], e)
+
+        # ── Generate PDF in-memory ────────────────────────────────────────
+        pdf_bytes = await generate_prescription_pdf(rx, clinic_doc, doctor_doc)
+
+        # ── Stream the PDF ────────────────────────────────────────────────
+        filename = f"prescription_{rx['_id']}.pdf"
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+            },
+        )
+
+    except Exception as exc:
+        log.error(
+            "Failed to serve prescription PDF for token=%s: %s\n%s",
+            share_token, exc, traceback.format_exc(),
+        )
+        return HTMLResponse(
+            content="""
+            <html>
+            <head>
+                <title>Error</title>
+                <style>
+                    body { font-family: Helvetica, Arial, sans-serif; text-align: center; padding-top: 80px; color: #333; }
+                    h2 { color: #DC2626; }
+                    p { font-size: 16px; color: #666; margin-top: 12px; }
+                </style>
+            </head>
+            <body>
+                <h2>Something went wrong</h2>
+                <p>We could not generate your prescription PDF at this moment.</p>
+                <p>Please try again in a few seconds, or contact your clinic for assistance.</p>
+            </body>
+            </html>
+            """,
+            status_code=500,
+        )
 
 
 @app.get("/api/health")

@@ -1,4 +1,5 @@
 import io
+import re
 import base64
 import logging
 import httpx
@@ -7,13 +8,144 @@ from datetime import datetime
 
 log = logging.getLogger(__name__)
 
+
+def _svg_path_to_png_data_url(path_data: str, width: int = 300, height: int = 100) -> str:
+    """Convert an SVG path `d` attribute into a base64 PNG data URL.
+
+    Uses Pillow's ImageDraw so there are zero native/system-library dependencies
+    beyond what Pillow already bundles. Bezier curves are approximated as short
+    line segments which is more than adequate for hand-drawn signatures.
+    """
+    from PIL import Image, ImageDraw
+
+    # High-res render then scale down for antialiased look
+    scale = 2
+    img = Image.new("RGBA", (width * scale, height * scale), (255, 255, 255, 0))
+    draw = ImageDraw.Draw(img)
+
+    # Parse SVG path tokens
+    tokens = re.findall(r'[MmLlCcQqSsTtHhVvZz]|[-+]?[0-9]*\.?[0-9]+', path_data)
+    i = 0
+    cx, cy = 0.0, 0.0
+    sx, sy = 0.0, 0.0  # start of sub-path
+    segments: list[tuple[float, float, float, float]] = []
+
+    def _nf() -> float:
+        nonlocal i
+        i += 1
+        return float(tokens[i])
+
+    def _bezier_pts(p0, p1, p2, p3, n=12):
+        """Approximate a cubic bezier with n line segments."""
+        pts = []
+        for t_i in range(n + 1):
+            t = t_i / n
+            u = 1 - t
+            x = u**3*p0[0] + 3*u**2*t*p1[0] + 3*u*t**2*p2[0] + t**3*p3[0]
+            y = u**3*p0[1] + 3*u**2*t*p1[1] + 3*u*t**2*p2[1] + t**3*p3[1]
+            pts.append((x, y))
+        return pts
+
+    while i < len(tokens):
+        cmd = tokens[i]
+        if cmd == 'M':
+            cx, cy = _nf(), _nf()
+            sx, sy = cx, cy
+            while i + 1 < len(tokens) and tokens[i + 1] not in 'MmLlCcQqSsTtHhVvZz':
+                nx, ny = _nf(), _nf()
+                segments.append((cx * scale, cy * scale, nx * scale, ny * scale))
+                cx, cy = nx, ny
+        elif cmd == 'm':
+            cx += _nf(); cy += _nf()
+            sx, sy = cx, cy
+        elif cmd == 'L':
+            nx, ny = _nf(), _nf()
+            segments.append((cx * scale, cy * scale, nx * scale, ny * scale))
+            cx, cy = nx, ny
+        elif cmd == 'l':
+            dx, dy = _nf(), _nf()
+            nx, ny = cx + dx, cy + dy
+            segments.append((cx * scale, cy * scale, nx * scale, ny * scale))
+            cx, cy = nx, ny
+        elif cmd == 'C':
+            x1, y1 = _nf(), _nf()
+            x2, y2 = _nf(), _nf()
+            x, y = _nf(), _nf()
+            pts = _bezier_pts((cx, cy), (x1, y1), (x2, y2), (x, y))
+            for j in range(len(pts) - 1):
+                segments.append((pts[j][0]*scale, pts[j][1]*scale, pts[j+1][0]*scale, pts[j+1][1]*scale))
+            cx, cy = x, y
+        elif cmd == 'c':
+            dx1, dy1 = _nf(), _nf()
+            dx2, dy2 = _nf(), _nf()
+            dx, dy = _nf(), _nf()
+            pts = _bezier_pts((cx, cy), (cx+dx1, cy+dy1), (cx+dx2, cy+dy2), (cx+dx, cy+dy))
+            for j in range(len(pts) - 1):
+                segments.append((pts[j][0]*scale, pts[j][1]*scale, pts[j+1][0]*scale, pts[j+1][1]*scale))
+            cx, cy = cx + dx, cy + dy
+        elif cmd == 'Q':
+            qx1, qy1 = _nf(), _nf()
+            x, y = _nf(), _nf()
+            c1 = (cx + 2/3*(qx1-cx), cy + 2/3*(qy1-cy))
+            c2 = (x + 2/3*(qx1-x), y + 2/3*(qy1-y))
+            pts = _bezier_pts((cx, cy), c1, c2, (x, y))
+            for j in range(len(pts) - 1):
+                segments.append((pts[j][0]*scale, pts[j][1]*scale, pts[j+1][0]*scale, pts[j+1][1]*scale))
+            cx, cy = x, y
+        elif cmd == 'q':
+            dqx1, dqy1 = _nf(), _nf()
+            dx, dy = _nf(), _nf()
+            qx1, qy1 = cx+dqx1, cy+dqy1
+            x, y = cx+dx, cy+dy
+            c1 = (cx + 2/3*(qx1-cx), cy + 2/3*(qy1-cy))
+            c2 = (x + 2/3*(qx1-x), y + 2/3*(qy1-y))
+            pts = _bezier_pts((cx, cy), c1, c2, (x, y))
+            for j in range(len(pts) - 1):
+                segments.append((pts[j][0]*scale, pts[j][1]*scale, pts[j+1][0]*scale, pts[j+1][1]*scale))
+            cx, cy = x, y
+        elif cmd == 'H':
+            nx = _nf()
+            segments.append((cx*scale, cy*scale, nx*scale, cy*scale))
+            cx = nx
+        elif cmd == 'h':
+            dx = _nf()
+            segments.append((cx*scale, cy*scale, (cx+dx)*scale, cy*scale))
+            cx += dx
+        elif cmd == 'V':
+            ny = _nf()
+            segments.append((cx*scale, cy*scale, cx*scale, ny*scale))
+            cy = ny
+        elif cmd == 'v':
+            dy = _nf()
+            segments.append((cx*scale, cy*scale, cx*scale, (cy+dy)*scale))
+            cy += dy
+        elif cmd in ('Z', 'z'):
+            segments.append((cx*scale, cy*scale, sx*scale, sy*scale))
+            cx, cy = sx, sy
+        i += 1
+
+    stroke_color = (15, 23, 42, 255)  # #0F172A
+    stroke_w = max(2, int(2.5 * scale))
+    for seg in segments:
+        draw.line(seg, fill=stroke_color, width=stroke_w)
+
+    # Downscale for antialiasing
+    img = img.resize((width, height), Image.LANCZOS)
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    encoded = base64.b64encode(buf.getvalue()).decode("utf-8")
+    return f"data:image/png;base64,{encoded}"
+
+
 async def get_base64_from_url(url: str) -> str | None:
     if not url:
         return None
     if url.startswith("data:"):
         return url
-    # If it is a signature path string (starts with M or m), it is not a URL
-    if url.lower().startswith("m") or url.strip().startswith("M"):
+    # If it is a signature SVG path string (starts with M followed by coordinates)
+    if re.match(r'^[Mm]\s*[\d\.\-]', url.strip()):
         return url
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -163,14 +295,16 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
     # Signature markup
     signature_html = ""
     if signature_base64:
-        # Check if it starts with 'M' (SVG path)
-        if signature_base64.lower().startswith("m") or signature_base64.strip().startswith("M"):
-            # xhtml2pdf handles SVG path in basic inline svgs
-            signature_html = f"""
-            <svg width="150" height="50" viewBox="0 0 300 100" style="margin-left: auto; margin-bottom: 4px;">
-              <path d="{signature_base64}" stroke="#0F172A" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-            """
+        # Check if it's an SVG path data string (e.g. "M10 20 L30 40...")
+        if re.match(r'^[Mm]\s*[\d\.\-]', signature_base64.strip()):
+            # xhtml2pdf does NOT reliably render inline SVG.
+            # Convert the SVG path to a rasterized PNG via reportlab and embed as base64 img.
+            try:
+                sig_img_data_url = _svg_path_to_png_data_url(signature_base64)
+                signature_html = f'<img src="{sig_img_data_url}" style="height:50px;margin-bottom:4px;" />'
+            except Exception as e:
+                log.warning("Failed to rasterize SVG signature, skipping: %s", e)
+                signature_html = ""
         else:
             signature_html = f'<img src="{signature_base64}" class="signature-img" />'
 
@@ -288,8 +422,21 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
 </html>"""
 
     pdf_buffer = io.BytesIO()
-    pisa_status = pisa.CreatePDF(html_content, dest=pdf_buffer)
+    try:
+        pisa_status = pisa.CreatePDF(html_content, dest=pdf_buffer)
+    except Exception as e:
+        import traceback
+        log.error("xhtml2pdf.CreatePDF raised: %s\n%s", e, traceback.format_exc())
+        raise RuntimeError(f"xhtml2pdf failed: {e}") from e
+
     if pisa_status.err:
+        log.error("xhtml2pdf compilation errors: %s", pisa_status.err)
         raise RuntimeError("xhtml2pdf failed to compile prescription HTML")
 
-    return pdf_buffer.getvalue()
+    result = pdf_buffer.getvalue()
+    if not result or len(result) < 100:
+        log.error("xhtml2pdf produced empty/tiny PDF (%d bytes)", len(result) if result else 0)
+        raise RuntimeError("xhtml2pdf produced an empty PDF")
+
+    log.info("PDF generated successfully: %d bytes", len(result))
+    return result
