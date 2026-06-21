@@ -15,13 +15,28 @@ if ! command -v node &> /dev/null; then
     exit 1
 fi
 
-echo "[1/5] Checking Node.js version..."
+# Check if Python is installed
+if ! command -v python3 &> /dev/null && ! command -v python &> /dev/null; then
+    echo "[ERROR] Python is not installed"
+    echo "Please install Python from https://www.python.org"
+    exit 1
+fi
+
+PYTHON_CMD="python3"
+if ! command -v python3 &> /dev/null; then
+    PYTHON_CMD="python"
+fi
+
+echo "[1/5] Checking environment versions..."
+echo -n "Node: "
 node --version
+echo -n "Python: "
+$PYTHON_CMD --version
 echo ""
 
 # Check if backend exists
-if [ ! -f "backend/package.json" ]; then
-    echo "[ERROR] Backend not found in backend/"
+if [ ! -f "backend_python/main.py" ]; then
+    echo "[ERROR] Backend not found in backend_python/"
     exit 1
 fi
 
@@ -31,12 +46,23 @@ if [ ! -f "frontend/package.json" ]; then
     exit 1
 fi
 
-echo "[2/5] Starting Backend Server..."
+# Check venv
+if [ ! -d "backend_python/.venv" ]; then
+    echo "[WARNING] Virtual environment not found in backend_python/.venv"
+    echo "Creating virtual environment and installing dependencies..."
+    cd backend_python
+    $PYTHON_CMD -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+    cd ..
+fi
+
+echo "[2/5] Starting Backend Server (FastAPI)..."
 echo ""
 
-# Start backend in background
-cd backend
-npm run dev > ../backend.log 2>&1 &
+# Start backend in background using venv python
+cd backend_python
+./.venv/bin/python main.py > ../backend.log 2>&1 &
 BACKEND_PID=$!
 echo "Backend PID: $BACKEND_PID"
 cd ..

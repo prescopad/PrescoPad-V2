@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     TWILIO_ACCOUNT_SID: Optional[str] = None
     TWILIO_AUTH_TOKEN: Optional[str] = None
     TWILIO_FROM_NUMBER: Optional[str] = None
+    RENFLAIR_API_KEY: Optional[str] = None
 
     # OTP brute-force protection
     OTP_MAX_VERIFY_ATTEMPTS: int = 5

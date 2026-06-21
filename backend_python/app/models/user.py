@@ -4,14 +4,34 @@ from datetime import datetime
 
 
 class SendOtpRequest(BaseModel):
-    phone: str
+    phone: Optional[str] = None
+    phone_number: Optional[str] = None
     role: Literal["doctor", "assistant", "admin"]
+    purpose: str = "login"
+
+    @model_validator(mode="after")
+    def resolve_phone(self):
+        val = self.phone or self.phone_number
+        if not val:
+            raise ValueError("Either phone or phone_number must be provided")
+        self.phone = val
+        return self
 
 
 class VerifyOtpRequest(BaseModel):
-    phone: str
+    phone: Optional[str] = None
+    phone_number: Optional[str] = None
     otp: str
     role: Literal["doctor", "assistant", "admin"]
+    purpose: str = "login"
+
+    @model_validator(mode="after")
+    def resolve_phone(self):
+        val = self.phone or self.phone_number
+        if not val:
+            raise ValueError("Either phone or phone_number must be provided")
+        self.phone = val
+        return self
 
 
 class LoginRequest(BaseModel):

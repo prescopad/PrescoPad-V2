@@ -11,8 +11,13 @@ Get up and running with PrescoPad in 5 minutes!
 
 ### Backend
 ```bash
-cd backend
-npm install
+cd backend_python
+python -m venv .venv
+# On Windows PowerShell:
+.\.venv\Scripts\Activate.ps1
+# On macOS/Linux:
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ### Frontend
@@ -59,15 +64,21 @@ node setup-env.js 192.168.1.100
 ## Step 3: Start Backend Server
 
 ```bash
-cd backend
-npm run dev
+cd backend_python
+# Activate virtual environment if not already activated
+.\.venv\Scripts\Activate.ps1  # Windows
+# or source .venv/bin/activate # macOS/Linux
+
+python main.py
 ```
 
 You should see:
 ```
-PrescoPad API running on port 3000
-Environment: development
-Health check: http://localhost:3000/api/health
+INFO:     Started server process [12345]
+INFO:     Waiting for application startup.
+INFO:     Connected to MongoDB: prescopad
+INFO:     Indexes created.
+INFO:     Uvicorn running on http://0.0.0.0:3000 (Press CTRL+C to quit)
 ```
 
 **Verify backend is running**:
@@ -256,13 +267,10 @@ npm install
 ### Development
 ```bash
 # Start backend
-cd backend && npm run dev
+cd backend_python && .venv\Scripts\python main.py
 
 # Start frontend
 cd frontend && npm start
-
-# Build backend
-cd backend && npm run build
 
 # Lint frontend
 cd frontend && npm run lint
@@ -285,9 +293,9 @@ curl http://localhost:3000/api/wallet/balance \
 
 ### Database
 ```bash
-# Run migrations (if needed)
-cd backend
-psql $DATABASE_URL < src/db/migrations/001_initial.sql
+# Database is MongoDB Atlas.
+# Collections and indexes are created automatically on startup.
+# Admin user is seeded automatically on first startup if SEED_ADMIN=true in .env.
 ```
 
 ## Support

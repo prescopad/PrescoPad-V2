@@ -111,7 +111,7 @@ if (option === 'emulator') {
 
   console.log('\n📱 Next steps:');
   console.log('  1. Ensure your device is on the same WiFi network');
-  console.log('  2. Start backend: cd backend && npm run dev');
+  console.log('  2. Start backend: cd backend_python && python main.py (or use start-dev.bat)');
   console.log('  3. Start frontend: cd frontend && npm start');
   console.log('  4. Scan QR code with Expo Go app\n');
 } else {
@@ -129,7 +129,7 @@ if (option === 'emulator') {
 
   console.log('\n📱 Next steps:');
   console.log('  1. Ensure your device can reach this IP');
-  console.log('  2. Start backend: cd backend && npm run dev');
+  console.log('  2. Start backend: cd backend_python && python main.py (or use start-dev.bat)');
   console.log('  3. Start frontend: cd frontend && npm start');
   console.log('  4. Scan QR code with Expo Go app\n');
 }

@@ -7,15 +7,23 @@ from app.config.database import get_db, get_user_collection
 from app.config.settings import settings
 from app.utils.hash import (
     hash_password, verify_password,
-    hash_otp, verify_otp,
     generate_doctor_code,
 )
-from app.utils.otp import send_otp_sms
+from app.services.otp_service import (
+    otp_store,
+    send_otp_via_renflair,
+    hash_otp_securely,
+    generate_secure_otp,
+    validate_indian_phone,
+)
 from app.utils.jwt import create_access_token, create_refresh_token, verify_refresh_token, make_token_payload
 from app.models.common import serialize_doc
 
 
-async def send_otp(phone: str, role: str) -> dict:
+async def send_otp(phone: str, role: str, purpose: str = "login") -> dict:
+    # Format and validate Indian phone number
+    phone = validate_indian_phone(phone)
+
     db = get_db()
     col = get_user_collection(db, role)
     user = await col.find_one({"phone": phone})
@@ -29,19 +37,22 @@ async def send_otp(phone: str, role: str) -> dict:
             role = "admin"
             user = admin_user
 
-    # Rate-limit OTP requests per phone+role.
-    one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
-    if user:
-        recent_count = user.get("otp_request_count", 0) or 0
-        window_start = user.get("otp_window_start_at")
-        if window_start and window_start.tzinfo is None:
-            window_start = window_start.replace(tzinfo=timezone.utc)
-        if window_start and window_start > one_hour_ago and recent_count >= settings.OTP_REQUESTS_PER_HOUR:
+    # Rate-limit OTP requests per phone+purpose using the in-memory store.
+    allowed, remaining = otp_store.check_resend_cooldown(phone, purpose)
+    if not allowed:
+        if remaining == -1:
             raise ValueError("Too many OTP requests. Please try again in an hour.")
+        else:
+            raise ValueError(f"Please wait {remaining} seconds before requesting a new OTP.")
 
-    otp = await send_otp_sms(phone)
-    otp_hash = hash_otp(otp)
-    otp_expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
+    otp = generate_secure_otp()
+    otp_hash = hash_otp_securely(otp)
+
+    # Call the SMS service
+    await send_otp_via_renflair(phone, otp)
+
+    # Update in-memory OTP store
+    otp_store.create_or_update(phone, purpose, otp_hash)
 
     if not user:
         doctor_code = None
@@ -55,11 +66,11 @@ async def send_otp(phone: str, role: str) -> dict:
             "specialty": None,
             "reg_number": None,
             "password_hash": None,
-            "otp_hash": otp_hash,
-            "otp_expires_at": otp_expires_at,
+            "otp_hash": None,
+            "otp_expires_at": None,
             "otp_attempts": 0,
-            "otp_request_count": 1,
-            "otp_window_start_at": datetime.now(timezone.utc),
+            "otp_request_count": 0,
+            "otp_window_start_at": None,
             "clinic_id": None,
             "doctor_code": doctor_code,
             "is_profile_complete": False,
@@ -101,25 +112,9 @@ async def send_otp(phone: str, role: str) -> dict:
             }
             await db.wallets.insert_one(wallet_doc)
     else:
-        # Reset / advance the rate-limit window.
-        window_start = user.get("otp_window_start_at")
-        if window_start and window_start.tzinfo is None:
-            window_start = window_start.replace(tzinfo=timezone.utc)
-        if window_start and window_start > one_hour_ago:
-            new_count = (user.get("otp_request_count") or 0) + 1
-            new_window = window_start
-        else:
-            new_count = 1
-            new_window = datetime.now(timezone.utc)
-
         await col.update_one(
             {"_id": user["_id"]},
             {"$set": {
-                "otp_hash": otp_hash,
-                "otp_expires_at": otp_expires_at,
-                "otp_attempts": 0,
-                "otp_request_count": new_count,
-                "otp_window_start_at": new_window,
                 "updated_at": datetime.now(timezone.utc),
             }}
         )
@@ -127,7 +122,13 @@ async def send_otp(phone: str, role: str) -> dict:
     return {"message": "OTP sent successfully"}
 
 
-async def verify_otp_and_login(phone: str, otp: str, role: str) -> dict:
+async def verify_otp_and_login(phone: str, otp: str, role: str, purpose: str = "login") -> dict:
+    phone = validate_indian_phone(phone)
+
+    entry = otp_store.get(phone, purpose)
+    if not entry:
+        raise ValueError("OTP expired or not found, please request a new one.")
+
     db = get_db()
     col = get_user_collection(db, role)
     user = await col.find_one({"phone": phone})
@@ -139,49 +140,33 @@ async def verify_otp_and_login(phone: str, otp: str, role: str) -> dict:
             col = db.admins
             role = "admin"
             user = admin_user
-    if not user:
-        raise ValueError("Invalid OTP")  # don't leak account existence
 
-    if not user.get("otp_hash"):
-        raise ValueError("No OTP requested")
+    input_hash = hash_otp_securely(otp)
+    if input_hash == entry["otp_hash"]:
+        # Success, clear store
+        otp_store.remove(phone, purpose)
 
-    # Brute-force attempt counter — locks the OTP after N failed tries.
-    attempts = user.get("otp_attempts", 0) or 0
-    if attempts >= settings.OTP_MAX_VERIFY_ATTEMPTS:
-        # Invalidate the OTP so it can't be guessed further.
+        if not user:
+            raise ValueError("Registration not completed. Please request a new OTP.")
+
         await col.update_one(
             {"_id": user["_id"]},
-            {"$set": {"otp_hash": None, "otp_expires_at": None}}
+            {"$set": {
+                "last_active_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
+            }}
         )
-        raise ValueError("Too many failed attempts. Please request a new OTP.")
 
-    otp_expires_at = user.get("otp_expires_at")
-    if otp_expires_at:
-        if otp_expires_at.tzinfo is None:
-            otp_expires_at = otp_expires_at.replace(tzinfo=timezone.utc)
-        if datetime.now(timezone.utc) > otp_expires_at:
-            raise ValueError("OTP expired")
-
-    if not verify_otp(otp, user["otp_hash"]):
-        await col.update_one(
-            {"_id": user["_id"]},
-            {"$inc": {"otp_attempts": 1}}
-        )
-        raise ValueError("Invalid OTP")
-
-    await col.update_one(
-        {"_id": user["_id"]},
-        {"$set": {
-            "otp_hash": None,
-            "otp_expires_at": None,
-            "otp_attempts": 0,
-            "last_active_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc),
-        }}
-    )
-
-    user = await col.find_one({"_id": user["_id"]})
-    return await _build_auth_response(user)
+        user = await col.find_one({"_id": user["_id"]})
+        return await _build_auth_response(user)
+    else:
+        attempts = otp_store.increment_attempts(phone, purpose)
+        if attempts >= settings.OTP_MAX_VERIFY_ATTEMPTS:
+            otp_store.remove(phone, purpose)
+            raise ValueError("Too many failed attempts. Please request a new OTP.")
+            
+        remaining = settings.OTP_MAX_VERIFY_ATTEMPTS - attempts
+        raise ValueError(f"Incorrect OTP. {remaining} attempt(s) remaining.")
 
 
 async def login_with_password(phone: str, password: str, role: str) -> dict:

@@ -33,17 +33,22 @@ function normalizeUser(u: Record<string, unknown>): User {
   };
 }
 
-export async function sendOTP(phone: string, role: UserRole): Promise<{ success: boolean; otp?: string }> {
-  const response = await api.post('/auth/send-otp', { phone, role });
+export async function sendOTP(
+  phone: string,
+  role: UserRole,
+  purpose: string = 'login'
+): Promise<{ success: boolean; expires_in?: number }> {
+  const response = await api.post('/auth/send-otp', { phone, role, purpose });
   return response.data;
 }
 
 export async function verifyOTP(
   phone: string,
   otp: string,
-  role: UserRole
+  role: UserRole,
+  purpose: string = 'login'
 ): Promise<AuthResponse> {
-  const response = await api.post('/auth/verify-otp', { phone, otp, role });
+  const response = await api.post('/auth/verify-otp', { phone, otp, role, purpose });
   return normalizeAuthResponse(response.data);
 }
 

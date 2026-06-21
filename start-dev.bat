@@ -16,13 +16,25 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-echo [1/4] Checking Node.js version...
+REM Check if Python is installed
+where python >nul 2>nul
+if %ERRORLEVEL% neq 0 (
+    echo [ERROR] Python is not installed or not in PATH
+    echo Please install Python from https://www.python.org
+    pause
+    exit /b 1
+)
+
+echo [1/5] Checking environment versions...
+echo Node: 
 node --version
+echo Python:
+python --version
 echo.
 
 REM Check if backend exists
-if not exist "backend\package.json" (
-    echo [ERROR] Backend not found in backend\
+if not exist "backend_python\main.py" (
+    echo [ERROR] Backend not found in backend_python\
     pause
     exit /b 1
 )
@@ -34,16 +46,27 @@ if not exist "frontend\package.json" (
     exit /b 1
 )
 
-echo [2/4] Starting Backend Server...
+REM Check if backend venv exists
+if not exist "backend_python\.venv\Scripts\python.exe" (
+    echo [WARNING] Python virtual environment not found in backend_python\.venv
+    echo Creating virtual environment and installing dependencies...
+    cd backend_python
+    python -m venv .venv
+    call .venv\Scripts\activate
+    pip install -r requirements.txt
+    cd ..
+)
+
+echo [2/5] Starting Backend Server (FastAPI)...
 echo.
-start "PrescoPad Backend" cmd /k "cd backend && npm run dev"
+start "PrescoPad Backend" cmd /k "cd backend_python && .venv\Scripts\python main.py"
 timeout /t 3 /nobreak >nul
 
-echo [3/4] Waiting for backend to initialize...
+echo [3/5] Waiting for backend to initialize...
 timeout /t 5 /nobreak >nul
 
 REM Test backend health
-echo [4/4] Testing backend connection...
+echo [4/5] Testing backend connection...
 curl -s http://localhost:3000/api/health >nul 2>nul
 if %ERRORLEVEL% equ 0 (
     echo [SUCCESS] Backend is running!
@@ -65,7 +88,7 @@ echo Backend:  http://localhost:3000/api
 echo Frontend: http://localhost:8081
 echo.
 echo Two new windows have opened:
-echo   1. Backend Server (Node.js/Express)
+echo   1. Backend Server (Python FastAPI)
 echo   2. Frontend Dev Server (Expo)
 echo.
 echo Press 'a' in the Expo window to run on Android

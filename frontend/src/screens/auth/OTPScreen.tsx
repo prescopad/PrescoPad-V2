@@ -18,7 +18,7 @@ import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'OTP'>;
 
-const RESEND_COOLDOWN_SECONDS = 30;
+const RESEND_COOLDOWN_SECONDS = 60;
 
 export default function OTPScreen({ navigation, route }: Props): React.JSX.Element {
   const keyboardHeight = useKeyboardHeight();
@@ -47,7 +47,7 @@ export default function OTPScreen({ navigation, route }: Props): React.JSX.Eleme
 
     setIsLoading(true);
     try {
-      const response = await verifyOTP(phone, otp, role as UserRole);
+      const response = await verifyOTP(phone, otp, role as UserRole, 'login');
 
       if (response.isNewUser || !response.user.isProfileComplete) {
         await setUser(response.user, response.accessToken, response.refreshToken);
@@ -68,7 +68,7 @@ export default function OTPScreen({ navigation, route }: Props): React.JSX.Eleme
     if (resendCountdown > 0 || isResending) return;
     setIsResending(true);
     try {
-      await sendOTP(phone, role as UserRole);
+      await sendOTP(phone, role as UserRole, 'login');
       setResendCountdown(RESEND_COOLDOWN_SECONDS);
       setOtp('');
       inputRef.current?.focus();

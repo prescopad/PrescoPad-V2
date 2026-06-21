@@ -22,8 +22,8 @@ def _err(message: str, status: int = 400):
 @router.post("/send-otp")
 async def send_otp(body: SendOtpRequest):
     try:
-        await auth_service.send_otp(body.phone, body.role)
-        return _ok({"message": "OTP sent successfully"})
+        await auth_service.send_otp(body.phone, body.role, body.purpose)
+        return _ok({"message": "OTP sent successfully", "expires_in": 300})
     except ValueError as e:
         # Expected, user-facing conditions: SMS not configured, rate-limited, etc.
         # 503 = service unavailable (config/provider issue), not a server crash.
@@ -35,7 +35,7 @@ async def send_otp(body: SendOtpRequest):
 @router.post("/verify-otp")
 async def verify_otp(body: VerifyOtpRequest):
     try:
-        result = await auth_service.verify_otp_and_login(body.phone, body.otp, body.role)
+        result = await auth_service.verify_otp_and_login(body.phone, body.otp, body.role, body.purpose)
         return _ok({
             "message": "Login successful",
             "access_token": result["access_token"],

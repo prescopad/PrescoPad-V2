@@ -1,7 +1,7 @@
-type SQLiteLikeDatabase = {
-  getFirstAsync<T>(query: string, params?: unknown[]): Promise<T | undefined>;
-  runAsync(query: string, params?: unknown[]): Promise<unknown>;
-};
+interface SQLiteLikeDatabase {
+  getFirstAsync<T>(query: string, params?: any): Promise<T | null | undefined>;
+  runAsync(query: string, params?: any): Promise<any>;
+}
 
 function generateSeedId(): string {
   const timestamp = Date.now().toString(36);
