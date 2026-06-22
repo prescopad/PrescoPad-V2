@@ -221,14 +221,14 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
 
         medicine_rows += f"""
         <tr>
-            <td style="padding:6px 8px;border-bottom:1px solid #eee;color:#334155;">{idx + 1}</td>
-            <td style="padding:6px 8px;border-bottom:1px solid #eee;">
-                <strong style="color:#0F172A;">{medicine_name}</strong>
-                <span style="color:#64748B;font-size:11px;"> ({med_type})</span>
+            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;color:#374151;font-size:12px;">{idx + 1}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;">
+                <strong style="color:#111827;font-size:12px;">{medicine_name}</strong>
+                <span style="color:#6b7280;font-size:11px;"> ({med_type})</span>
             </td>
-            <td style="padding:6px 8px;border-bottom:1px solid #eee;color:#334155;">{frequency}</td>
-            <td style="padding:6px 8px;border-bottom:1px solid #eee;color:#334155;">{duration}</td>
-            <td style="padding:6px 8px;border-bottom:1px solid #eee;color:#64748B;font-size:11px;">{timing_instruction}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;color:#374151;font-size:12px;">{frequency}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;color:#374151;font-size:12px;">{duration}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;color:#374151;font-size:12px;">{timing_instruction}</td>
         </tr>"""
 
     # Build lab tests
@@ -239,12 +239,12 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
         for t in lab_tests:
             test_name = t.get("test_name") or t.get("testName") or ""
             notes = t.get("notes") or ""
-            notes_str = f" - <em>{notes}</em>" if notes else ""
-            list_items += f'<li style="margin-bottom:4px;color:#334155;">{test_name}{notes_str}</li>'
-        
+            notes_str = f" — {notes}" if notes else ""
+            list_items += f'<li style="margin-bottom:3px;color:#374151;font-size:12px;">{test_name}{notes_str}</li>'
+
         lab_tests_html = f"""
         <div class="section-title">Lab Tests / Investigations</div>
-        <ul style="padding-left:20px;font-size:12px;">{list_items}</ul>
+        <ul style="padding-left:18px;">{list_items}</ul>
         """
 
     # Build diagnosis, symptoms, advice, follow-up
@@ -253,7 +253,7 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
     if symptoms:
         symptoms_html = f"""
         <div class="section-title">Symptoms</div>
-        <div style="font-size:12px;color:#334155;margin-bottom:8px;line-height:18px;">{', '.join(symptoms)}</div>
+        <div class="plain-text">{', '.join(symptoms)}</div>
         """
 
     diagnosis = rx.get("diagnosis")
@@ -261,7 +261,7 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
     if diagnosis:
         diagnosis_html = f"""
         <div class="section-title">Diagnosis</div>
-        <div class="diagnosis-box">{diagnosis}</div>
+        <div class="diagnosis-text">{diagnosis}</div>
         """
 
     advice = rx.get("advice")
@@ -269,7 +269,7 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
     if advice:
         advice_html = f"""
         <div class="section-title">Advice</div>
-        <div class="advice-box">{advice}</div>
+        <div class="advice-text">{advice}</div>
         """
 
     follow_up_date = rx.get("follow_up_date") or rx.get("followUpDate")
@@ -281,15 +281,15 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
         except Exception:
             fud_str = follow_up_date
         follow_up_html = f"""
-        <div class="follow-up">Follow-up: {fud_str}</div>
+        <div class="followup-text">Follow-up: {fud_str}</div>
         """
 
     # QR Code markup
     qr_code_html = ""
     if clinic_qr_base64:
         qr_code_html = f"""
-        <img src="{clinic_qr_base64}" style="height:80px;width:80px;margin-bottom:4px;" />
-        <div style="font-size:9px;color:#64748B;">Scan for Payment / Details</div>
+        <img src="{clinic_qr_base64}" style="height:60px;width:60px;margin-bottom:2px;" />
+        <div style="font-size:9px;color:#9ca3af;">Scan for Payment / Details</div>
         """
 
     # Signature markup
@@ -301,113 +301,120 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
             # Convert the SVG path to a rasterized PNG via reportlab and embed as base64 img.
             try:
                 sig_img_data_url = _svg_path_to_png_data_url(signature_base64)
-                signature_html = f'<img src="{sig_img_data_url}" style="height:50px;margin-bottom:4px;" />'
+                signature_html = f'<img src="{sig_img_data_url}" style="max-height:56px;max-width:160px;display:block;margin-left:auto;margin-bottom:4px;" />'
             except Exception as e:
                 log.warning("Failed to rasterize SVG signature, skipping: %s", e)
                 signature_html = ""
         else:
-            signature_html = f'<img src="{signature_base64}" class="signature-img" />'
+            signature_html = f'<img src="{signature_base64}" style="max-height:56px;max-width:160px;display:block;margin-left:auto;margin-bottom:4px;" />'
 
-    reg_num_html = f'<div style="font-size:10px;color:#64748B;">Reg. No: {doctor_reg}</div>' if doctor_reg else ""
-    clinic_contact_info = " | ".join(filter(None, [clinic_phone, clinic_email]))
-    clinic_contact_html = f'<div class="clinic-info">{clinic_contact_info}</div>' if clinic_contact_info else ""
+    reg_num_html = f'<div class="sig-reg">Reg. No: {doctor_reg}</div>' if doctor_reg else ""
 
-    # Generate HTML string (uses tables instead of flex for exact PDF formatting)
+    doctor_line_parts = [f"Dr. {doctor_name}"]
+    if doctor_specialty:
+        doctor_line_parts.append(doctor_specialty)
+    if doctor_reg:
+        doctor_line_parts.append(f"Reg: {doctor_reg}")
+    doctor_line = " | ".join(doctor_line_parts)
+
+    clinic_sub_parts = [p for p in [clinic_address, clinic_phone, clinic_email] if p]
+    clinic_sub_html = f'<div class="clinic-sub">{" | ".join(clinic_sub_parts)}</div>' if clinic_sub_parts else ""
+
+    patient_name = rx.get("patient_name") or rx.get("patientName") or ""
+    patient_age = rx.get("patient_age") or rx.get("patientAge") or ""
+    patient_gender = rx.get("patient_gender") or rx.get("patientGender") or ""
+    patient_phone = rx.get("patient_phone") or rx.get("patientPhone") or "—"
+    rx_id = rx.get("id") or rx.get("_id") or ""
+
     html_content = f"""<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <style>
     * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-    body {{ font-family: Helvetica, Arial, sans-serif; color: #0F172A; padding: 24px; background: #fff; }}
-    .header {{ text-align: center; border-bottom: 3px solid #0077B6; padding-bottom: 16px; margin-bottom: 16px; }}
-    .clinic-name {{ font-size: 22px; font-weight: 700; color: #0077B6; letter-spacing: 0.5px; }}
-    .clinic-info {{ font-size: 11px; color: #64748B; margin-top: 4px; }}
-    .doctor-info {{ font-size: 12px; color: #334155; margin-top: 6px; }}
-    .patient-section-table {{ width: 100%; margin: 12px 0; padding: 10px; background: #F8FAFC; border-radius: 6px; border: none; }}
-    .patient-label {{ color: #64748B; font-size: 10px; text-transform: uppercase; margin-bottom: 2px; }}
-    .patient-value {{ color: #0F172A; font-weight: 600; font-size: 12px; }}
-    .section-title {{ font-size: 13px; font-weight: 700; color: #0077B6; margin: 14px 0 8px; text-transform: uppercase; letter-spacing: 0.5px; }}
-    table.med-table {{ width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }}
-    th.med-th {{ background: #0077B6; color: #fff; padding: 8px; text-align: left; font-size: 11px; text-transform: uppercase; }}
-    .diagnosis-box {{ background: #F0F9FF; border-left: 3px solid #0077B6; padding: 10px; margin: 8px 0; border-radius: 0 6px 6px 0; font-size: 12px; }}
-    .advice-box {{ background: #FEF3C7; border-left: 3px solid #D97706; padding: 10px; margin: 8px 0; border-radius: 0 6px 6px 0; font-size: 12px; }}
-    .follow-up {{ font-size: 12px; color: #DC2626; font-weight: 600; margin-top: 8px; }}
-    .signature-img {{ max-height: 50px; margin-bottom: 4px; }}
-    .footer {{ text-align: center; margin-top: 20px; padding-top: 10px; border-top: 1px solid #E2E8F0; font-size: 9px; color: #94A3B8; }}
-    .hash {{ font-family: monospace; font-size: 8px; color: #94A3B8; word-break: break-all; }}
+    body {{ font-family: Helvetica, Arial, sans-serif; color: #111827; padding: 32px 36px; background: #fff; font-size: 12px; }}
+    .header {{ text-align: center; padding-bottom: 12px; border-bottom: 2px solid #1d6fa4; margin-bottom: 10px; }}
+    .clinic-name {{ font-size: 20px; font-weight: 700; color: #1d6fa4; }}
+    .clinic-sub {{ font-size: 11px; color: #6b7280; margin-top: 3px; }}
+    .doctor-line {{ font-size: 12px; color: #374151; margin-top: 4px; }}
+    .meta-row {{ text-align: right; font-size: 11px; color: #6b7280; margin-bottom: 10px; }}
+    .section-title {{ font-size: 11px; font-weight: 700; color: #1d6fa4; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 5px; }}
+    table.patient-table {{ width: 100%; border-collapse: collapse; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; margin-bottom: 14px; }}
+    .p-label {{ font-size: 9px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.6px; padding-bottom: 2px; }}
+    .p-value {{ font-size: 13px; font-weight: 700; color: #111827; }}
+    .plain-text {{ font-size: 12px; color: #374151; line-height: 1.5; margin-bottom: 2px; }}
+    .diagnosis-text {{ font-size: 12px; color: #374151; line-height: 1.5; padding: 6px 10px; background: #f0f9ff; border-left: 3px solid #1d6fa4; margin-bottom: 2px; }}
+    .advice-text {{ font-size: 12px; color: #374151; line-height: 1.5; padding: 6px 10px; background: #fffbeb; border-left: 3px solid #d97706; margin-bottom: 2px; }}
+    .followup-text {{ font-size: 12px; color: #dc2626; font-weight: 600; margin-top: 10px; }}
+    table.med-table {{ width: 100%; border-collapse: collapse; margin-bottom: 2px; }}
+    th {{ background: #1d6fa4; color: #fff; padding: 7px 8px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700; }}
+    .sig-name {{ font-size: 12px; font-weight: 700; color: #111827; }}
+    .sig-reg {{ font-size: 10px; color: #6b7280; margin-top: 1px; }}
+    .footer {{ text-align: center; margin-top: 24px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 9px; color: #9ca3af; }}
+    .hash {{ font-family: monospace; font-size: 8px; color: #d1d5db; word-break: break-all; margin-top: 2px; }}
   </style>
 </head>
 <body>
+
   <div class="header">
     <div class="clinic-name">{clinic_name}</div>
-    {f'<div class="clinic-info">{clinic_address}</div>' if clinic_address else ''}
-    {clinic_contact_html}
-    <div class="doctor-info">
-      <strong>Dr. {doctor_name}</strong>{f' | {doctor_specialty}' if doctor_specialty else ''}{f' | Reg: {doctor_reg}' if doctor_reg else ''}
-    </div>
+    {clinic_sub_html}
+    <div class="doctor-line">{doctor_line}</div>
   </div>
 
-  <table style="width: 100%; margin-bottom: 8px; border: none;">
-    <tr>
-      <td style="font-size: 12px; color: #0077B6; font-weight: 700; text-transform: uppercase; vertical-align: middle;">
-        {consultation_type_str}
-      </td>
-      <td style="font-size: 12px; color: #64748B; text-align: right; vertical-align: middle;">
-        Date: <strong style="color: #0F172A;">{date_str}</strong> | ID: <strong style="color: #0077B6;">{rx.get('id') or rx.get('_id')}</strong>
-      </td>
-    </tr>
-  </table>
+  <div class="meta-row">
+    Date: <strong>{date_str}</strong> &nbsp;|&nbsp; ID: <strong style="color:#1d6fa4;">{rx_id}</strong>
+  </div>
 
-  <table class="patient-section-table">
+  <table class="patient-table">
     <tr>
-      <td style="width: 34%; vertical-align: top;">
-        <div class="patient-label">Patient</div>
-        <div class="patient-value">{rx.get('patient_name') or rx.get('patientName')}</div>
+      <td style="width:34%;padding:8px 12px 8px 0;vertical-align:top;">
+        <div class="p-label">Patient</div>
+        <div class="p-value">{patient_name}</div>
       </td>
-      <td style="width: 33%; vertical-align: top;">
-        <div class="patient-label">Age/Gender</div>
-        <div class="patient-value">{rx.get('patient_age') or rx.get('patientAge')} yrs / {rx.get('patient_gender') or rx.get('patientGender')}</div>
+      <td style="width:33%;padding:8px 12px;vertical-align:top;">
+        <div class="p-label">Age/Gender</div>
+        <div class="p-value">{patient_age} yrs / {patient_gender}</div>
       </td>
-      <td style="width: 33%; vertical-align: top;">
-        <div class="patient-label">Phone</div>
-        <div class="patient-value">{rx.get('patient_phone') or rx.get('patientPhone') or 'N/A'}</div>
+      <td style="width:33%;padding:8px 0 8px 12px;vertical-align:top;">
+        <div class="p-label">Phone</div>
+        <div class="p-value">{patient_phone}</div>
       </td>
     </tr>
   </table>
 
   {symptoms_html}
   {diagnosis_html}
-  {lab_tests_html}
 
   {f'''
   <div class="section-title">Medicines</div>
   <table class="med-table">
     <thead>
       <tr>
-        <th class="med-th" style="width:30px;">#</th>
-        <th class="med-th">Medicine</th>
-        <th class="med-th">Dosage</th>
-        <th class="med-th">Duration</th>
-        <th class="med-th">Instructions</th>
+        <th style="width:28px;">#</th>
+        <th>Medicine</th>
+        <th>Dosage</th>
+        <th>Duration</th>
+        <th>Instructions</th>
       </tr>
     </thead>
     <tbody>{medicine_rows}</tbody>
   </table>
   ''' if medicines else ''}
 
+  {lab_tests_html}
   {advice_html}
   {follow_up_html}
 
-  <table style="width: 100%; margin-top: 30px; border: none;">
+  <table style="width:100%;margin-top:32px;border:none;border-collapse:collapse;">
     <tr>
-      <td style="width: 50%; text-align: left; vertical-align: bottom;">
+      <td style="vertical-align:bottom;text-align:left;">
         {qr_code_html}
       </td>
-      <td style="width: 50%; text-align: right; vertical-align: bottom;">
+      <td style="vertical-align:bottom;text-align:right;">
         {signature_html}
-        <div style="border-top: 1px solid #334155; width: 200px; margin-left: auto; padding-top: 4px; text-align: right;">
-          <div style="font-size: 12px; font-weight: 600;">Dr. {doctor_name}</div>
+        <div style="border-top:1px solid #374151;display:inline-block;min-width:160px;padding-top:4px;text-align:right;">
+          <div class="sig-name">Dr. {doctor_name}</div>
           {reg_num_html}
         </div>
       </td>
@@ -418,6 +425,7 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
     <div>Generated by PrescoPad - Digital Prescription System</div>
     {f'<div class="hash">Verification Hash: {rx.get("pdf_hash") or rx.get("pdfHash")}</div>' if (rx.get("pdf_hash") or rx.get("pdfHash")) else ''}
   </div>
+
 </body>
 </html>"""
 
