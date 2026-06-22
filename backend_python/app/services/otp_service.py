@@ -141,8 +141,8 @@ class InMemoryOtpStore:
         self.store.pop(key, None)
 
 
-# Global instance of OTP store
-otp_store = InMemoryOtpStore()
+# Global instance of OTP store — reads rate-limit cap from settings
+otp_store = InMemoryOtpStore(max_resends_per_hour=settings.OTP_REQUESTS_PER_HOUR)
 
 
 async def send_otp_via_renflair(phone_number: str, otp: str) -> dict:

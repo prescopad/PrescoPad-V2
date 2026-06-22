@@ -6,6 +6,7 @@ from app.models.user import (
 from app.middleware.auth import get_current_user, TokenData
 from fastapi.responses import JSONResponse
 import app.services.auth_service as auth_service
+from app.services.auth_service import RateLimitError
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -24,12 +25,16 @@ async def send_otp(body: SendOtpRequest):
     try:
         await auth_service.send_otp(body.phone, body.role, body.purpose)
         return _ok({"message": "OTP sent successfully", "expires_in": 300})
+    except RateLimitError as e:
+        return _err(str(e), 429)
     except ValueError as e:
-        # Expected, user-facing conditions: SMS not configured, rate-limited, etc.
-        # 503 = service unavailable (config/provider issue), not a server crash.
-        return _err(str(e), 503)
+        msg = str(e)
+        # SMS provider/network errors are a service issue, not a client mistake
+        if "SMS" in msg or "delivery" in msg.lower() or "provider" in msg.lower():
+            return _err(msg, 503)
+        return _err(msg, 400)
     except Exception as e:
-        return _err(str(e), 500)
+        return _err("Something went wrong while sending the OTP. Please try again.", 500)
 
 
 @router.post("/verify-otp")
@@ -45,7 +50,7 @@ async def verify_otp(body: VerifyOtpRequest):
     except ValueError as e:
         return _err(str(e), 400)
     except Exception as e:
-        return _err(str(e), 500)
+        return _err("Verification failed. Please try again.", 500)
 
 
 @router.post("/login")

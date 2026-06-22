@@ -1,6 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+
+class RateLimitError(ValueError):
+    """Raised when an OTP request is blocked by rate limiting."""
+
 from bson import ObjectId
 
 from app.config.database import get_db, get_user_collection
@@ -41,9 +45,9 @@ async def send_otp(phone: str, role: str, purpose: str = "login") -> dict:
     allowed, remaining = otp_store.check_resend_cooldown(phone, purpose)
     if not allowed:
         if remaining == -1:
-            raise ValueError("Too many OTP requests. Please try again in an hour.")
+            raise RateLimitError("You've requested too many OTPs. Please wait an hour before trying again.")
         else:
-            raise ValueError(f"Please wait {remaining} seconds before requesting a new OTP.")
+            raise RateLimitError(f"Please wait {remaining} seconds before requesting another OTP.")
 
     otp = generate_secure_otp()
     otp_hash = hash_otp_securely(otp)
@@ -127,7 +131,7 @@ async def verify_otp_and_login(phone: str, otp: str, role: str, purpose: str = "
 
     entry = otp_store.get(phone, purpose)
     if not entry:
-        raise ValueError("OTP expired or not found, please request a new one.")
+        raise ValueError("This OTP has expired or is no longer valid. Please request a new one.")
 
     db = get_db()
     col = get_user_collection(db, role)
@@ -147,7 +151,7 @@ async def verify_otp_and_login(phone: str, otp: str, role: str, purpose: str = "
         otp_store.remove(phone, purpose)
 
         if not user:
-            raise ValueError("Registration not completed. Please request a new OTP.")
+            raise ValueError("Account setup is incomplete. Please request a new OTP to register.")
 
         await col.update_one(
             {"_id": user["_id"]},
@@ -163,10 +167,11 @@ async def verify_otp_and_login(phone: str, otp: str, role: str, purpose: str = "
         attempts = otp_store.increment_attempts(phone, purpose)
         if attempts >= settings.OTP_MAX_VERIFY_ATTEMPTS:
             otp_store.remove(phone, purpose)
-            raise ValueError("Too many failed attempts. Please request a new OTP.")
-            
+            raise ValueError("Too many incorrect attempts. Please request a new OTP and try again.")
+
         remaining = settings.OTP_MAX_VERIFY_ATTEMPTS - attempts
-        raise ValueError(f"Incorrect OTP. {remaining} attempt(s) remaining.")
+        attempt_word = "attempt" if remaining == 1 else "attempts"
+        raise ValueError(f"Incorrect OTP. You have {remaining} {attempt_word} remaining.")
 
 
 async def login_with_password(phone: str, password: str, role: str) -> dict:
