@@ -58,6 +58,11 @@ export default function OTPScreen({ navigation, route }: Props): React.JSX.Eleme
       }
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : t('auth.otpVerificationFailed');
+      // Clear the input so they can re-enter cleanly after a wrong OTP
+      if (msg.toLowerCase().includes('incorrect') || msg.toLowerCase().includes('expired')) {
+        setOtp('');
+        inputRef.current?.focus();
+      }
       Alert.alert(t('common.error'), msg);
     } finally {
       setIsLoading(false);
@@ -74,7 +79,7 @@ export default function OTPScreen({ navigation, route }: Props): React.JSX.Eleme
       inputRef.current?.focus();
       Alert.alert(t('common.success'), t('auth.otpResent'));
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : t('common.somethingWrong');
+      const msg = error instanceof Error ? error.message : t('auth.smsFailed');
       Alert.alert(t('common.error'), msg);
     } finally {
       setIsResending(false);

@@ -37,7 +37,7 @@ export default function LoginScreen({ navigation, route }: Props): React.JSX.Ele
       await sendOTP(phone, role as UserRole);
       navigation.navigate('OTP', { phone, role });
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : t('auth.failedSendOtp');
+      const msg = error instanceof Error ? error.message : t('auth.smsFailed');
       Alert.alert(t('common.error'), msg);
     } finally {
       setIsLoading(false);

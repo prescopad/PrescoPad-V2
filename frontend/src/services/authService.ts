@@ -1,5 +1,21 @@
 import api from './api';
+import axios from 'axios';
 import { UserRole, AuthResponse, User } from '../types/auth.types';
+
+/** Extract the user-facing message from a backend error response. */
+function extractErrorMessage(error: unknown, fallback: string): string {
+  if (axios.isAxiosError(error)) {
+    const msg = error.response?.data?.message;
+    if (msg && typeof msg === 'string') return msg;
+  }
+  if (error instanceof Error) return error.message;
+  return fallback;
+}
+
+/** Re-throw with the backend's message so UI catch blocks get clear text. */
+function throwWithMessage(error: unknown, fallback: string): never {
+  throw new Error(extractErrorMessage(error, fallback));
+}
 
 // Normalize Python backend snake_case response → camelCase AuthResponse
 function normalizeAuthResponse(data: Record<string, unknown>): AuthResponse {
@@ -38,8 +54,12 @@ export async function sendOTP(
   role: UserRole,
   purpose: string = 'login'
 ): Promise<{ success: boolean; expires_in?: number }> {
-  const response = await api.post('/auth/send-otp', { phone, role, purpose });
-  return response.data;
+  try {
+    const response = await api.post('/auth/send-otp', { phone, role, purpose });
+    return response.data;
+  } catch (error) {
+    throwWithMessage(error, 'Failed to send OTP. Please try again.');
+  }
 }
 
 export async function verifyOTP(
@@ -48,8 +68,12 @@ export async function verifyOTP(
   role: UserRole,
   purpose: string = 'login'
 ): Promise<AuthResponse> {
-  const response = await api.post('/auth/verify-otp', { phone, otp, role, purpose });
-  return normalizeAuthResponse(response.data);
+  try {
+    const response = await api.post('/auth/verify-otp', { phone, otp, role, purpose });
+    return normalizeAuthResponse(response.data);
+  } catch (error) {
+    throwWithMessage(error, 'Verification failed. Please try again.');
+  }
 }
 
 export async function loginWithPassword(
