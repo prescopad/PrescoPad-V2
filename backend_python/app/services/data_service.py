@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from bson import ObjectId
@@ -5,6 +6,8 @@ from app.config.database import get_db
 from app.models.common import serialize_doc
 import uuid
 import secrets
+
+log = logging.getLogger(__name__)
 
 
 # ─── Patients ────────────────────────────────────────────────────────────────
@@ -59,10 +62,14 @@ async def delete_patient(clinic_id: str, patient_id: str) -> None:
     if result.deleted_count == 0:
         raise ValueError("Patient not found in this clinic")
         
-    # Delete all associated records
-    await db.queue.delete_many({"patient_id": patient_id, "clinic_id": clinic_id})
-    await db.prescriptions.delete_many({"patient_id": patient_id, "clinic_id": clinic_id})
-    await db.prescription_drafts.delete_many({"patient_id": patient_id, "clinic_id": clinic_id})
+    # Delete all associated records.
+    # Records may store patient_id as either string or ObjectId depending on
+    # when they were written, so match both forms.
+    pid_obj = ObjectId(patient_id)
+    patient_id_filter = {"$in": [patient_id, pid_obj]}
+    await db.queue.delete_many({"patient_id": patient_id_filter, "clinic_id": clinic_id})
+    await db.prescriptions.delete_many({"patient_id": patient_id_filter, "clinic_id": clinic_id})
+    await db.prescription_drafts.delete_many({"patient_id": patient_id_filter, "clinic_id": clinic_id})
 
 
 
@@ -384,12 +391,18 @@ async def finalize_prescription(clinic_id: str, doctor_id: str, prescription_id:
     )
     if update_result.modified_count == 0:
         # Someone else finalized between our read and write — refund our debit.
-        await wallet_service.refund(
-            user_id=doctor_id,
-            amount=fee,
-            reference_id=prescription_id,
-            description=f"Refund: duplicate finalize for {prescription_id}",
-        )
+        try:
+            await wallet_service.refund(
+                user_id=doctor_id,
+                amount=fee,
+                reference_id=prescription_id,
+                description=f"Refund: duplicate finalize for {prescription_id}",
+            )
+        except Exception as refund_err:
+            log.error(
+                "CRITICAL: wallet deducted for %s but refund failed: %s",
+                prescription_id, refund_err,
+            )
 
     rx = await db.prescriptions.find_one({"_id": prescription_id})
     return serialize_doc(rx)

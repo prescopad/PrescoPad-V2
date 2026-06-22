@@ -127,7 +127,10 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
 
       const queueItemId = usePrescriptionStore.getState().queueItemId;
       if (queueItemId) {
-        updateQueueStatus(queueItemId, QueueStatus.COMPLETED).catch(() => {});
+        updateQueueStatus(queueItemId, QueueStatus.COMPLETED).catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : 'Unknown error';
+          console.warn('[PrescriptionPreview] Failed to mark queue item completed:', msg);
+        });
       }
 
       await loadBalance();

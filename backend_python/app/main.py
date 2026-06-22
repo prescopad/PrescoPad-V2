@@ -105,7 +105,37 @@ app.include_router(analytics.router)
 app.include_router(admin.router)
 
 
-DOWNLOAD_LIMITS = {}
+# IP-based rate limit: {ip: {"count": int, "time": datetime}}
+# Capped at MAX_IP_ENTRIES to prevent unbounded memory growth.
+_DOWNLOAD_LIMITS: dict = {}
+_MAX_IP_ENTRIES = 2000
+_IP_WINDOW = timedelta(minutes=1)
+_IP_MAX_REQUESTS = 20
+# Per-token access cap: {share_token: int} — persists for the token's lifetime.
+_TOKEN_ACCESS_COUNTS: dict = {}
+_TOKEN_MAX_DOWNLOADS = 50
+
+
+def _check_ip_rate_limit(client_ip: str, now: datetime) -> bool:
+    """Returns True if the request is allowed, False if rate-limited.
+    Prunes stale entries to keep the dict bounded.
+    """
+    # Prune entries older than the window before checking
+    stale = [ip for ip, v in _DOWNLOAD_LIMITS.items() if now - v["time"] > _IP_WINDOW]
+    for ip in stale:
+        _DOWNLOAD_LIMITS.pop(ip, None)
+
+    # If still over the cap after pruning, reject new IPs (DoS protection)
+    if client_ip not in _DOWNLOAD_LIMITS and len(_DOWNLOAD_LIMITS) >= _MAX_IP_ENTRIES:
+        return False
+
+    entry = _DOWNLOAD_LIMITS.setdefault(client_ip, {"count": 0, "time": now})
+    if now - entry["time"] > _IP_WINDOW:
+        entry["count"] = 0
+        entry["time"] = now
+
+    entry["count"] += 1
+    return entry["count"] <= _IP_MAX_REQUESTS
 
 
 @app.get("/rx/{share_token}")
@@ -123,29 +153,28 @@ async def download_prescription(share_token: str, request: Request):
 
     now = datetime.now(timezone.utc)
 
-    for ip in list(DOWNLOAD_LIMITS.keys()):
-        if now - DOWNLOAD_LIMITS[ip]["time"] > timedelta(minutes=1):
-            DOWNLOAD_LIMITS.pop(ip, None)
-
-    limits = DOWNLOAD_LIMITS.setdefault(client_ip, {"count": 0, "time": now})
-    if now - limits["time"] > timedelta(minutes=1):
-        limits["count"] = 0
-        limits["time"] = now
-
-    limits["count"] += 1
-    if limits["count"] > 10:
+    if not _check_ip_rate_limit(client_ip, now):
         return HTMLResponse(
             content="<h3>Too many requests. Please try again in a minute.</h3>",
             status_code=429,
         )
 
     try:
+        # ── Per-token access cap (prevents enumeration abuse) ────────────
+        _TOKEN_ACCESS_COUNTS[share_token] = _TOKEN_ACCESS_COUNTS.get(share_token, 0) + 1
+        if _TOKEN_ACCESS_COUNTS[share_token] > _TOKEN_MAX_DOWNLOADS:
+            return HTMLResponse(
+                content="<h3>This prescription link has reached its download limit. Please contact your clinic.</h3>",
+                status_code=429,
+            )
+
         # ── Look up prescription by share_token ──────────────────────────
         db = get_db()
         rx = await db.prescriptions.find_one(
             {"share_token": share_token, "is_deleted": {"$ne": True}}
         )
         if not rx:
+            # Penalise invalid token guesses — counts toward the cap even if not found
             return HTMLResponse(
                 content="<h3>Link invalid or prescription not found.</h3>",
                 status_code=404,

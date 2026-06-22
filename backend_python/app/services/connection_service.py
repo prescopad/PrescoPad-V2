@@ -205,10 +205,23 @@ async def disconnect_assistant(doctor_id: str, clinic_id: str, assistant_id: str
         {"$set": {"status": "rejected", "updated_at": datetime.now(timezone.utc)}}
     )
 
-    # If no assistants remain, flip the clinic back to solo_mode so the doctor
-    # regains AddPatient / PatientSearch capability.
+    # If this doctor has no remaining assistants, flip the clinic back to
+    # solo_mode. We scope the count to this doctor specifically so that a
+    # shared clinic (multiple doctors) doesn't incorrectly go into solo_mode
+    # just because one doctor disconnected their assistant.
     remaining = await db.assistants.count_documents({
-        "clinic_id": clinic_id, "is_active": True,
+        "clinic_id": clinic_id,
+        "is_active": True,
+        "$or": [
+            # Accepted connection request from this doctor
+            {"_id": {"$in": [
+                req["assistant_id"]
+                async for req in db.connection_requests.find({
+                    "doctor_id": doctor_id,
+                    "status": "accepted",
+                })
+            ]}}
+        ],
     })
     if remaining == 0:
         await db.clinics.update_one(

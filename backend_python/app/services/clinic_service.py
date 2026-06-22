@@ -85,9 +85,11 @@ async def get_doctor_status(clinic_id: str) -> list:
     result = []
     async for doc in cursor:
         last_active = doc.get("last_active_at")
-        if last_active and last_active.tzinfo is None:
+        if not isinstance(last_active, datetime):
+            last_active = None
+        elif last_active.tzinfo is None:
             last_active = last_active.replace(tzinfo=timezone.utc)
-        is_online = last_active and last_active > threshold
+        is_online = last_active is not None and last_active > threshold
         result.append({
             "id": str(doc["_id"]),
             "name": doc.get("name"),

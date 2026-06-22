@@ -26,10 +26,16 @@ async def get_current_user(request: Request) -> TokenData:
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
+    user_id = payload.get("userId")
+    role = payload.get("role")
+    phone = payload.get("phone")
+    if not user_id or not role or not phone:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+
     return TokenData(
-        user_id=payload["userId"],
-        role=payload["role"],
-        phone=payload["phone"],
+        user_id=user_id,
+        role=role,
+        phone=phone,
         clinic_id=payload.get("clinicId"),
     )
 

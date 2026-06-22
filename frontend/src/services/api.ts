@@ -64,12 +64,20 @@ api.interceptors.response.use(
     }
     originalRequest._retry = true;
 
-    // Single-flight refresh.
+    // Single-flight refresh — all concurrent 401s share the same promise.
     refreshPromise = refreshPromise ?? performRefresh();
-    const newToken = await refreshPromise;
-    refreshPromise = null;
+    let newToken: string | null;
+    try {
+      newToken = await refreshPromise;
+    } finally {
+      // Always clear so the next genuine expiry triggers a fresh refresh,
+      // not a stale settled promise.
+      refreshPromise = null;
+    }
 
     if (!newToken) {
+      // Refresh token is gone or the refresh endpoint itself returned an
+      // error — the session is unrecoverable, clear stored tokens.
       await SecureStore.deleteItemAsync('accessToken');
       await SecureStore.deleteItemAsync('refreshToken');
       return Promise.reject(error);
