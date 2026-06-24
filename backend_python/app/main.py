@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from datetime import datetime, timezone, timedelta
 
 from contextlib import asynccontextmanager
@@ -231,7 +232,20 @@ async def download_prescription(share_token: str, request: Request):
         pdf_bytes = await generate_prescription_pdf(rx, clinic_doc, doctor_doc)
 
         # ── Stream the PDF ────────────────────────────────────────────────
-        filename = f"prescription_{rx['_id']}.pdf"
+        patient_name_raw = rx.get("patient_name") or rx.get("patientName") or "Patient"
+        safe_patient = re.sub(r'[^\w\s-]', '', patient_name_raw).strip().replace(' ', '_')
+        created_at_raw = rx.get("created_at")
+        if isinstance(created_at_raw, str):
+            try:
+                rx_dt = datetime.fromisoformat(created_at_raw)
+            except Exception:
+                rx_dt = datetime.utcnow()
+        elif isinstance(created_at_raw, datetime):
+            rx_dt = created_at_raw
+        else:
+            rx_dt = datetime.utcnow()
+        date_prefix = rx_dt.strftime("%d-%m-%Y")
+        filename = f"{date_prefix}_{safe_patient}.pdf"
         return StreamingResponse(
             io.BytesIO(pdf_bytes),
             media_type="application/pdf",

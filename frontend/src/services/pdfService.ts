@@ -161,6 +161,9 @@ function buildPrescriptionHTML(
     .map((t) => `<li style="margin-bottom:3px;color:#374151;font-size:12px;">${t.testName}${t.notes ? ` — ${t.notes}` : ''}</li>`)
     .join('');
 
+  const clinicSubLine1 = clinicAddress || '';
+  const clinicSubLine2 = [clinicPhone, clinicEmail].filter(Boolean).join(' | ');
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -171,26 +174,18 @@ function buildPrescriptionHTML(
     .header { text-align: center; padding-bottom: 12px; border-bottom: 2px solid #1d6fa4; margin-bottom: 10px; }
     .clinic-name { font-size: 20px; font-weight: 700; color: #1d6fa4; }
     .clinic-sub { font-size: 11px; color: #6b7280; margin-top: 3px; }
-    .doctor-line { font-size: 12px; color: #374151; margin-top: 4px; }
+    .doctor-line { font-size: 12px; font-weight: 700; color: #374151; margin-top: 4px; }
     .meta-row { text-align: right; font-size: 11px; color: #6b7280; margin-bottom: 10px; }
-    .meta-row strong { color: #111827; }
-    .meta-row .rx-id { color: #1d6fa4; font-weight: 700; }
-    .patient-row { display: flex; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; padding: 8px 0; margin-bottom: 14px; gap: 0; }
-    .patient-cell { flex: 1; padding-right: 12px; }
-    .patient-cell:last-child { padding-right: 0; }
-    .p-label { font-size: 9px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 2px; }
+    .p-label { font-size: 9px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.6px; padding-bottom: 2px; }
     .p-value { font-size: 13px; font-weight: 700; color: #111827; }
     .section-title { font-size: 11px; font-weight: 700; color: #1d6fa4; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 5px; }
     .plain-text { font-size: 12px; color: #374151; line-height: 1.5; margin-bottom: 2px; }
     .diagnosis-text { font-size: 12px; color: #374151; line-height: 1.5; padding: 6px 10px; background: #f0f9ff; border-left: 3px solid #1d6fa4; margin-bottom: 2px; }
     .advice-text { font-size: 12px; color: #374151; line-height: 1.5; padding: 6px 10px; background: #fffbeb; border-left: 3px solid #d97706; margin-bottom: 2px; }
     .followup-text { font-size: 12px; color: #dc2626; font-weight: 600; margin-top: 10px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 2px; }
+    table.med-table { width: 100%; border-collapse: collapse; margin-bottom: 2px; }
+    table.patient-table { width: 100%; border-collapse: collapse; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; margin-bottom: 14px; }
     th { background: #1d6fa4; color: #fff; padding: 7px 8px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700; }
-    th:first-child { width: 28px; }
-    .sig-block { margin-top: 32px; text-align: right; }
-    .sig-img { max-height: 56px; max-width: 160px; display: block; margin-left: auto; margin-bottom: 4px; }
-    .sig-line { border-top: 1px solid #374151; display: inline-block; min-width: 160px; padding-top: 4px; text-align: right; }
     .sig-name { font-size: 12px; font-weight: 700; color: #111827; }
     .sig-reg { font-size: 10px; color: #6b7280; margin-top: 1px; }
     .footer { text-align: center; margin-top: 24px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 9px; color: #9ca3af; }
@@ -202,28 +197,31 @@ function buildPrescriptionHTML(
 
   <div class="header">
     <div class="clinic-name">${clinicName}</div>
-    ${clinicAddress || clinicPhone || clinicEmail ? `<div class="clinic-sub">${[clinicAddress, clinicPhone, clinicEmail].filter(Boolean).join(' | ')}</div>` : ''}
+    ${clinicSubLine1 ? `<div class="clinic-sub">${clinicSubLine1}</div>` : ''}
+    ${clinicSubLine2 ? `<div class="clinic-sub">${clinicSubLine2}</div>` : ''}
     <div class="doctor-line">${doctorLine}</div>
   </div>
 
   <div class="meta-row">
-    Date: <strong>${dateStr}</strong> &nbsp;|&nbsp; ID: <span class="rx-id">${rx.id}</span>
+    Date: <strong>${dateStr}</strong> &nbsp;|&nbsp; ID: <strong style="color:#1d6fa4;">${rx.id}</strong>
   </div>
 
-  <div class="patient-row">
-    <div class="patient-cell">
-      <div class="p-label">Patient</div>
-      <div class="p-value">${rx.patientName}</div>
-    </div>
-    <div class="patient-cell">
-      <div class="p-label">Age/Gender</div>
-      <div class="p-value">${rx.patientAge} yrs / ${rx.patientGender}</div>
-    </div>
-    <div class="patient-cell">
-      <div class="p-label">Phone</div>
-      <div class="p-value">${rx.patientPhone || '—'}</div>
-    </div>
-  </div>
+  <table class="patient-table">
+    <tr>
+      <td style="width:34%;padding:8px 12px 8px 0;vertical-align:top;">
+        <div class="p-label">Patient</div>
+        <div class="p-value">${rx.patientName}</div>
+      </td>
+      <td style="width:33%;padding:8px 12px;vertical-align:top;">
+        <div class="p-label">Age/Gender</div>
+        <div class="p-value">${rx.patientAge} yrs / ${rx.patientGender}</div>
+      </td>
+      <td style="width:33%;padding:8px 0 8px 12px;vertical-align:top;">
+        <div class="p-label">Phone</div>
+        <div class="p-value">${rx.patientPhone || '—'}</div>
+      </td>
+    </tr>
+  </table>
 
   ${rx.symptoms && rx.symptoms.length > 0 ? `
   <div class="section-title">Symptoms</div>
@@ -237,10 +235,10 @@ function buildPrescriptionHTML(
 
   ${rx.medicines.length > 0 ? `
   <div class="section-title">Medicines</div>
-  <table>
+  <table class="med-table">
     <thead>
       <tr>
-        <th>#</th>
+        <th style="width:28px;">#</th>
         <th>Medicine</th>
         <th>Dosage</th>
         <th>Duration</th>
@@ -265,26 +263,29 @@ function buildPrescriptionHTML(
   <div class="followup-text">Follow-up: ${new Date(rx.followUpDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
   ` : ''}
 
-  <div class="sig-block">
-    ${rx.signature && rx.signature.startsWith('M') ? `
-      <svg width="160" height="56" viewBox="0 0 300 100" class="sig-img" style="display:block;margin-left:auto;margin-bottom:4px;">
-        <path d="${rx.signature}" stroke="#111827" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
-    ` : rx.signature ? `
-      <img src="${rx.signature}" class="sig-img" />
-    ` : ''}
-    <div class="sig-line">
-      <div class="sig-name">Dr. ${doctorName}</div>
-      ${doctorReg ? `<div class="sig-reg">Reg. No: ${doctorReg}</div>` : ''}
-    </div>
-  </div>
-
-  ${clinicQrBase64 ? `
-  <div style="margin-top:12px;">
-    <img src="${clinicQrBase64}" style="height:60px;width:60px;" />
-    <div style="font-size:9px;color:#9ca3af;margin-top:2px;">Scan for Payment / Details</div>
-  </div>
-  ` : ''}
+  <table style="width:100%;margin-top:32px;border:none;border-collapse:collapse;">
+    <tr>
+      <td style="vertical-align:bottom;text-align:left;">
+        ${clinicQrBase64 ? `
+          <img src="${clinicQrBase64}" style="height:60px;width:60px;margin-bottom:2px;" />
+          <div style="font-size:9px;color:#9ca3af;">Scan for Payment / Details</div>
+        ` : ''}
+      </td>
+      <td style="vertical-align:bottom;text-align:right;">
+        ${rx.signature && (rx.signature.startsWith('M') || rx.signature.startsWith('m')) ? `
+          <svg width="160" height="56" viewBox="0 0 300 100" style="display:block;margin-left:auto;margin-bottom:4px;">
+            <path d="${rx.signature}" stroke="#111827" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        ` : rx.signature ? `
+          <img src="${rx.signature}" style="max-height:56px;max-width:160px;display:block;margin-left:auto;margin-bottom:4px;" />
+        ` : ''}
+        <div style="border-top:1px solid #374151;display:inline-block;min-width:160px;padding-top:4px;text-align:right;">
+          <div class="sig-name">Dr. ${doctorName}</div>
+          ${doctorReg ? `<div class="sig-reg">Reg. No: ${doctorReg}</div>` : ''}
+        </div>
+      </td>
+    </tr>
+  </table>
 
   <div class="footer">
     <div>Generated by PrescoPad - Digital Prescription System</div>
