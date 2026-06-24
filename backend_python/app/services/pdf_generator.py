@@ -217,7 +217,7 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
         duration = m.get("duration") or ""
         timing = m.get("timing") or ""
         notes = m.get("notes") or ""
-        timing_instruction = f"{timing} - {notes}" if (timing and notes) else (timing or notes)
+        timing_instruction = f"{timing} ({notes})" if (timing and notes) else (timing or notes)
 
         medicine_rows += f"""
         <tr>
