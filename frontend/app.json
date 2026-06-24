@@ -34,8 +34,18 @@
     "plugins": [
       "expo-sqlite",
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      "expo-updates"
     ],
+    "updates": {
+      "url": "https://u.expo.dev/1fd4aa61-d13c-4d10-b7b8-61334d53bc7c",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "extra": {
       "eas": {
         "projectId": "1fd4aa61-d13c-4d10-b7b8-61334d53bc7c"
