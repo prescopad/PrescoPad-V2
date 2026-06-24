@@ -219,11 +219,11 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
         notes = m.get("notes") or ""
         timing_instruction = f"{timing} ({notes})" if (timing and notes) else (timing or notes)
 
-        med_type_html = f' <span style="color:#6b7280;font-size:11px;">({med_type})</span>' if med_type else ""
+        med_display = f"{medicine_name} ({med_type})" if med_type else medicine_name
         medicine_rows += f"""
         <tr>
             <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;color:#374151;font-size:12px;">{idx + 1}</td>
-            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;"><span style="color:#111827;font-size:12px;font-weight:bold;">{medicine_name}</span>{med_type_html}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;color:#111827;font-size:12px;font-weight:bold;">{med_display}</td>
             <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;color:#374151;font-size:12px;">{frequency}</td>
             <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;color:#374151;font-size:12px;">{duration}</td>
             <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;color:#374151;font-size:12px;">{timing_instruction}</td>
@@ -356,10 +356,9 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
   <style>
     * {{ margin: 0; padding: 0; box-sizing: border-box; }}
     body {{ font-family: Arial, Helvetica, sans-serif; color: #111827; padding: 32px 36px; background: #fff; font-size: 12px; }}
-    .header {{ text-align: center; padding-bottom: 12px; border-bottom: 2px solid #1d6fa4; margin-bottom: 10px; }}
-    .clinic-name {{ font-size: 20px; font-weight: 700; color: #1d6fa4; }}
-    .clinic-sub {{ font-size: 11px; color: #6b7280; margin-top: 3px; }}
-    .doctor-line {{ font-size: 12px; font-weight: 700; color: #374151; margin-top: 4px; }}
+    .clinic-name {{ font-size: 20px; font-weight: 700; color: #1d6fa4; text-align: center; }}
+    .clinic-sub {{ font-size: 11px; color: #6b7280; margin-top: 3px; text-align: center; }}
+    .doctor-line {{ font-size: 12px; font-weight: 700; color: #374151; margin-top: 4px; text-align: center; margin-bottom: 10px; }}
     .meta-row {{ text-align: right; font-size: 11px; color: #6b7280; margin-bottom: 10px; }}
     .p-label {{ font-size: 9px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.6px; padding-bottom: 2px; }}
     .p-value {{ font-size: 13px; font-weight: 700; color: #111827; }}
@@ -380,11 +379,10 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
 </head>
 <body>
 
-  <div class="header">
-    <div class="clinic-name">{clinic_name}</div>
-    {clinic_sub_html}
-    <div class="doctor-line">{doctor_line}</div>
-  </div>
+  <div class="clinic-name">{clinic_name}</div>
+  {clinic_sub_html}
+  <div class="doctor-line">{doctor_line}</div>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:10px;"><tr><td style="border-bottom:2px solid #1d6fa4;font-size:0;line-height:0;">&nbsp;</td></tr></table>
 
   <div class="meta-row">
     Date: <strong>{date_str}</strong> &nbsp;|&nbsp; ID: <strong style="color:#1d6fa4;">{rx_id}</strong>
