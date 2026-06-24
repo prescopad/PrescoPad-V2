@@ -317,8 +317,12 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
         doctor_line_parts.append(f"Reg: {doctor_reg}")
     doctor_line = " | ".join(doctor_line_parts)
 
-    clinic_sub_parts = [p for p in [clinic_address, clinic_phone, clinic_email] if p]
-    clinic_sub_html = f'<div class="clinic-sub">{" | ".join(clinic_sub_parts)}</div>' if clinic_sub_parts else ""
+    clinic_sub_html = ""
+    if clinic_address:
+        clinic_sub_html += f'<div class="clinic-sub">{clinic_address}</div>'
+    contact_parts = [p for p in [clinic_phone, clinic_email] if p]
+    if contact_parts:
+        clinic_sub_html += f'<div class="clinic-sub">{" | ".join(contact_parts)}</div>'
 
     patient_name = rx.get("patient_name") or rx.get("patientName") or ""
     patient_age = rx.get("patient_age") or rx.get("patientAge") or ""
@@ -336,7 +340,7 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
     .header {{ text-align: center; padding-bottom: 12px; border-bottom: 2px solid #1d6fa4; margin-bottom: 10px; }}
     .clinic-name {{ font-size: 20px; font-weight: 700; color: #1d6fa4; }}
     .clinic-sub {{ font-size: 11px; color: #6b7280; margin-top: 3px; }}
-    .doctor-line {{ font-size: 12px; color: #374151; margin-top: 4px; }}
+    .doctor-line {{ font-size: 12px; font-weight: 700; color: #374151; margin-top: 4px; }}
     .meta-row {{ text-align: right; font-size: 11px; color: #6b7280; margin-bottom: 10px; }}
     .section-title {{ font-size: 11px; font-weight: 700; color: #1d6fa4; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 5px; }}
     table.patient-table {{ width: 100%; border-collapse: collapse; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; margin-bottom: 14px; }}
