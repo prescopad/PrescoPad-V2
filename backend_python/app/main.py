@@ -250,7 +250,7 @@ async def download_prescription(share_token: str, request: Request):
             io.BytesIO(pdf_bytes),
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Disposition": f'inline; filename="{filename}"',
             },
         )
 
