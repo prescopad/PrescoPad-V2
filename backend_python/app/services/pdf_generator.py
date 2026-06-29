@@ -732,7 +732,8 @@ async def generate_prescription_pdf(data: dict, *args, **kwargs) -> bytes | io.B
             duration_val = m.get("duration") or ""
             
             # Fetch the food timing instruction (Before Food / After Food)
-            food_val = m.get("food_instruction") or m.get("before_after_food") or m.get("food_timing") or m.get("instructions") or ""
+            # BUG FIX: Added m.get("timing") to look up the correct key sent from the mobile app
+            food_val = m.get("food_instruction") or m.get("before_after_food") or m.get("food_timing") or m.get("timing") or m.get("instructions") or ""
             # Ensure it is a valid food instruction or fallback to empty string
             if food_val not in ["Before Food", "After Food"]:
                 lower_val = str(food_val).lower()
@@ -743,13 +744,14 @@ async def generate_prescription_pdf(data: dict, *args, **kwargs) -> bytes | io.B
                 else:
                     food_val = ""
 
-            instructions_val = m.get("instructions") or m.get("frequency") or m.get("timing") or m.get("notes") or ""
-
-            # De-duplicate if the keys map to the same field
-            if instructions_val == dosage_val:
-                instructions_val = m.get("timing") or m.get("notes") or m.get("instructions") or ""
-            if instructions_val == food_val:
-                instructions_val = m.get("timing") or m.get("notes") or ""
+            # Resolve instructions — use notes and other custom timing, avoiding duplicating the food timing
+            instructions_val = m.get("notes") or ""
+            other_timing = m.get("timing") or m.get("instructions") or ""
+            if other_timing and other_timing != food_val:
+                if instructions_val:
+                    instructions_val = f"{other_timing} ({instructions_val})"
+                else:
+                    instructions_val = other_timing
 
             table_data.append([
                 Paragraph(str(idx + 1), med_cell_style),
