@@ -338,6 +338,17 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
             </View>
           ) : null}
 
+          {/* Referred To */}
+          {rx.referredTo ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>REFERRED TO</Text>
+              <View style={styles.adviceBox}>
+                <Ionicons name="arrow-forward-circle-outline" size={18} color={COLORS.primary} />
+                <Text style={[styles.adviceText, { fontWeight: '700' }]}>{rx.referredTo}</Text>
+              </View>
+            </View>
+          ) : null}
+
           {/* Signature Area */}
           <View style={styles.signatureSection}>
             {rx.signature && rx.signature.startsWith('M') ? (
