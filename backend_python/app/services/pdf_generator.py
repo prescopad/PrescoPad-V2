@@ -712,12 +712,13 @@ async def generate_prescription_pdf(data: dict, *args, **kwargs) -> bytes | io.B
             fontName="Helvetica-Bold",
         )
 
-        # Header Row wrapped in Paragraph objects
+        # Header Row wrapped in Paragraph objects (including the new Food Timing column)
         table_data = [[
             Paragraph("#", med_header_style),
             Paragraph("Medicine Name", med_header_style),
             Paragraph("Dosage", med_header_style),
             Paragraph("Duration", med_header_style),
+            Paragraph("Food Timing", med_header_style), # Added Food Timing header cell
             Paragraph("Instructions", med_header_style),
         ]]
 
@@ -729,28 +730,45 @@ async def generate_prescription_pdf(data: dict, *args, **kwargs) -> bytes | io.B
 
             dosage_val = m.get("dosage") or m.get("frequency") or ""
             duration_val = m.get("duration") or ""
+            
+            # Fetch the food timing instruction (Before Food / After Food)
+            food_val = m.get("food_instruction") or m.get("before_after_food") or m.get("food_timing") or m.get("instructions") or ""
+            # Ensure it is a valid food instruction or fallback to empty string
+            if food_val not in ["Before Food", "After Food"]:
+                lower_val = str(food_val).lower()
+                if "before" in lower_val:
+                    food_val = "Before Food"
+                elif "after" in lower_val:
+                    food_val = "After Food"
+                else:
+                    food_val = ""
+
             instructions_val = m.get("instructions") or m.get("frequency") or m.get("timing") or m.get("notes") or ""
 
-            # De-duplicate if frequency was already used for dosage
+            # De-duplicate if the keys map to the same field
             if instructions_val == dosage_val:
                 instructions_val = m.get("timing") or m.get("notes") or m.get("instructions") or ""
+            if instructions_val == food_val:
+                instructions_val = m.get("timing") or m.get("notes") or ""
 
             table_data.append([
                 Paragraph(str(idx + 1), med_cell_style),
                 Paragraph(med_display, med_cell_style_bold),
                 Paragraph(dosage_val, med_cell_style),
                 Paragraph(duration_val, med_cell_style),
+                Paragraph(food_val, med_cell_style), # Added Food Timing value cell
                 Paragraph(instructions_val, med_cell_style),
             ])
 
-        # Exact column width proportions summing to usable_width
-        # Column proportions: # (5%), Medicine Name (35%), Dosage (20%), Duration (15%), Instructions (25%)
+        # Recalculated column widths summing to exactly usable_width (495.27 pt)
+        # Proportions: # (5%), Medicine Name (30%), Dosage (15%), Duration (10%), Food Timing (18%), Instructions (22%)
         med_col_widths = [
             usable_width * 0.05,
-            usable_width * 0.35,
-            usable_width * 0.20,
+            usable_width * 0.30,
             usable_width * 0.15,
-            usable_width * 0.25,
+            usable_width * 0.10,
+            usable_width * 0.18,
+            usable_width * 0.22,
         ]
 
         med_table = Table(table_data, colWidths=med_col_widths, repeatRows=1)
