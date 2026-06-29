@@ -116,12 +116,16 @@ export async function printPrescription(
   await Print.printAsync({ html });
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Redesigned HTML template — matches the backend ReportLab PDF layout
+// ═══════════════════════════════════════════════════════════════════════════
 function buildPrescriptionHTML(
   rx: Prescription,
   clinic: Clinic | null,
   doctor: DoctorProfile | null,
   clinicQrBase64: string | null = null
 ): string {
+  // ── Extract fields ─────────────────────────────────────────────────────
   const clinicName = clinic?.name || 'PrescoPad Clinic';
   const clinicAddress = clinic?.address || '';
   const clinicPhone = clinic?.phone || '';
@@ -135,160 +139,355 @@ function buildPrescriptionHTML(
     year: 'numeric',
   });
 
+  // ── Doctor info line ───────────────────────────────────────────────────
   const doctorLine = [
     `Dr. ${doctorName}`,
     doctorSpecialty,
     doctorReg ? `Reg: ${doctorReg}` : '',
-  ].filter(Boolean).join(' | ');
+  ].filter(Boolean).join(' &nbsp;|&nbsp; ');
 
+  // ── Clinic contact sub-lines ───────────────────────────────────────────
+  const clinicSubLine1 = clinicAddress || '';
+  const clinicSubLine2 = [clinicPhone, clinicEmail].filter(Boolean).join(' &nbsp;|&nbsp; ');
+
+  // ── Consultation type ──────────────────────────────────────────────────
+  const consultType = rx.consultationType;
+  let consultBadge = '';
+  if (consultType === 'new') consultBadge = 'New Consultation';
+  else if (consultType === 'follow_up') consultBadge = 'Follow-up';
+
+  // ── Medicine rows ──────────────────────────────────────────────────────
   const medicineRows = rx.medicines
     .map(
       (m, i) => `
-      <tr>
-        <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;color:#374151;font-size:12px;">${i + 1}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;">
-          <strong style="color:#111827;font-size:12px;">${m.medicineName}</strong>
-          <span style="color:#6b7280;font-size:11px;"> (${m.type})</span>
+      <tr style="background:${i % 2 === 1 ? '#F0F7F7' : '#fff'};">
+        <td style="padding:8px 6px;border:0.5px solid #e5e7eb;text-align:center;color:#374151;font-size:10px;">${i + 1}</td>
+        <td style="padding:8px 6px;border:0.5px solid #e5e7eb;">
+          <strong style="color:#111827;font-size:10px;">${m.medicineName}</strong>
+          <span style="color:#6b7280;font-size:9px;"> (${m.type})</span>
         </td>
-        <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;color:#374151;font-size:12px;">${m.frequency}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;color:#374151;font-size:12px;">${m.duration}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;color:#374151;font-size:12px;">${m.timing}${m.notes ? ` (${m.notes})` : ''}</td>
+        <td style="padding:8px 6px;border:0.5px solid #e5e7eb;color:#374151;font-size:10px;">${m.frequency}</td>
+        <td style="padding:8px 6px;border:0.5px solid #e5e7eb;color:#374151;font-size:10px;">${m.duration}</td>
+        <td style="padding:8px 6px;border:0.5px solid #e5e7eb;color:#374151;font-size:10px;">${m.timing}${m.notes ? ` (${m.notes})` : ''}</td>
       </tr>`
     )
     .join('');
 
-  const labTestsList = rx.labTests
-    .map((t) => `<li style="margin-bottom:3px;color:#374151;font-size:12px;">${t.testName}${t.notes ? ` — ${t.notes}` : ''}</li>`)
+  // ── Lab test items ─────────────────────────────────────────────────────
+  const labTestItems = rx.labTests
+    .map((t) => {
+      const notesStr = t.notes ? ` — <span style="color:#555555;">${t.notes}</span>` : '';
+      return `<div style="padding:2px 0 2px 12px;font-size:10px;color:#111827;">&#8226;&nbsp;<strong>${t.testName}</strong>${notesStr}</div>`;
+    })
     .join('');
 
-  const clinicSubLine1 = clinicAddress || '';
-  const clinicSubLine2 = [clinicPhone, clinicEmail].filter(Boolean).join(' | ');
+  // ── Symptoms section ───────────────────────────────────────────────────
+  const symptomsHtml = rx.symptoms && rx.symptoms.length > 0
+    ? `<div style="margin-top:10px;margin-bottom:6px;">
+         <div class="section-title">Symptoms</div>
+         <div style="font-size:10px;color:#111827;line-height:1.5;">${rx.symptoms.join(', ')}</div>
+       </div>`
+    : '';
 
+  // ── Diagnosis section ──────────────────────────────────────────────────
+  const diagnosisHtml = rx.diagnosis
+    ? `<div style="margin-top:10px;margin-bottom:6px;">
+         <div class="section-title">Diagnosis</div>
+         <div class="accent-box-diag">${rx.diagnosis}</div>
+       </div>`
+    : '';
+
+  // ── Medicines section ──────────────────────────────────────────────────
+  const medicinesHtml = rx.medicines.length > 0
+    ? `<div style="margin-top:10px;margin-bottom:8px;">
+         <div style="font-size:16px;font-weight:700;color:#0B6E6E;margin-bottom:6px;">&#8478; &nbsp;Medicines</div>
+         <table class="med-table">
+           <thead>
+             <tr>
+               <th style="width:28px;text-align:center;">#</th>
+               <th>Medicine</th>
+               <th>Dosage</th>
+               <th>Duration</th>
+               <th>Instructions</th>
+             </tr>
+           </thead>
+           <tbody>${medicineRows}</tbody>
+         </table>
+       </div>`
+    : '';
+
+  // ── Lab tests section ──────────────────────────────────────────────────
+  const labTestsHtml = rx.labTests.length > 0
+    ? `<div style="margin-top:10px;margin-bottom:6px;">
+         <div class="section-title">Lab Tests / Investigations</div>
+         ${labTestItems}
+       </div>`
+    : '';
+
+  // ── Advice section ─────────────────────────────────────────────────────
+  const adviceHtml = rx.advice
+    ? `<div style="margin-top:10px;margin-bottom:6px;">
+         <div class="section-title">Special Instructions / Doctor's Notes</div>
+         <div class="accent-box-advice">${rx.advice}</div>
+       </div>`
+    : '';
+
+  // ── Follow-up date ─────────────────────────────────────────────────────
+  const followUpHtml = rx.followUpDate
+    ? `<div style="font-size:11px;font-weight:700;color:#dc2626;margin-top:10px;margin-bottom:6px;">
+         Follow-up: ${new Date(rx.followUpDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+       </div>`
+    : '';
+
+  // ── Signature block ────────────────────────────────────────────────────
+  let signatureImg = '';
+  if (rx.signature) {
+    if (rx.signature.startsWith('M') || rx.signature.startsWith('m')) {
+      // SVG path data — render inline SVG
+      signatureImg = `
+        <svg width="150" height="60" viewBox="0 0 300 100" style="display:block;margin-left:auto;margin-bottom:4px;">
+          <path d="${rx.signature}" stroke="#0F172A" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>`;
+    } else {
+      // Base64 / data URL image
+      signatureImg = `<img src="${rx.signature}" style="max-height:60px;max-width:150px;display:block;margin-left:auto;margin-bottom:4px;" />`;
+    }
+  }
+
+  const regHtml = doctorReg ? `<div style="font-size:9px;color:#6b7280;text-align:right;">Reg. No: ${doctorReg}</div>` : '';
+
+  // ── QR code block ──────────────────────────────────────────────────────
+  const qrHtml = clinicQrBase64
+    ? `<div>
+         <img src="${clinicQrBase64}" style="height:60px;width:60px;margin-bottom:2px;" />
+         <div style="font-size:7px;color:#9ca3af;">Scan for Payment / Details</div>
+       </div>`
+    : '';
+
+  // ══════════════════════════════════════════════════════════════════════
+  // Full HTML document
+  // ══════════════════════════════════════════════════════════════════════
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <style>
+    /* ── Reset ── */
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, Helvetica, sans-serif; color: #111827; padding: 32px 36px; background: #fff; font-size: 12px; }
-    .header { text-align: center; padding-bottom: 12px; border-bottom: 2px solid #1d6fa4; margin-bottom: 10px; }
-    .clinic-name { font-size: 20px; font-weight: 700; color: #1d6fa4; }
-    .clinic-sub { font-size: 11px; color: #6b7280; margin-top: 3px; }
-    .doctor-line { font-size: 12px; font-weight: 700; color: #374151; margin-top: 4px; }
-    .meta-row { text-align: right; font-size: 11px; color: #6b7280; margin-bottom: 10px; }
-    .p-label { font-size: 9px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.6px; padding-bottom: 2px; }
-    .p-value { font-size: 13px; font-weight: 700; color: #111827; }
-    .section-title { font-size: 11px; font-weight: 700; color: #1d6fa4; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 5px; }
-    .plain-text { font-size: 12px; color: #374151; line-height: 1.5; margin-bottom: 2px; }
-    .diagnosis-text { font-size: 12px; color: #374151; line-height: 1.5; padding: 6px 10px; background: #f0f9ff; border-left: 3px solid #1d6fa4; margin-bottom: 2px; }
-    .advice-text { font-size: 12px; color: #374151; line-height: 1.5; padding: 6px 10px; background: #fffbeb; border-left: 3px solid #d97706; margin-bottom: 2px; }
-    .followup-text { font-size: 12px; color: #dc2626; font-weight: 600; margin-top: 10px; }
-    table.med-table { width: 100%; border-collapse: collapse; margin-bottom: 2px; }
-    table.patient-table { width: 100%; border-collapse: collapse; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; margin-bottom: 14px; }
-    th { background: #1d6fa4; color: #fff; padding: 7px 8px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700; }
-    .sig-name { font-size: 12px; font-weight: 700; color: #111827; }
-    .sig-reg { font-size: 10px; color: #6b7280; margin-top: 1px; }
-    .footer { text-align: center; margin-top: 24px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 9px; color: #9ca3af; }
-    .hash { font-family: monospace; font-size: 8px; color: #d1d5db; word-break: break-all; margin-top: 2px; }
-    ul { padding-left: 18px; }
+
+    /* ── Page ── */
+    @page { size: A4; margin: 40px 50px; }
+    body {
+      font-family: Helvetica, Arial, sans-serif;
+      color: #111827;
+      padding: 40px 50px;
+      background: #fff;
+      font-size: 10px;
+      line-height: 1.4;
+    }
+
+    /* ── Header ── */
+    .clinic-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: #0B6E6E;
+      text-align: center;
+      margin-bottom: 2px;
+    }
+    .doctor-line {
+      font-size: 13px;
+      font-weight: 700;
+      color: #111827;
+      text-align: center;
+      margin-top: 2px;
+      margin-bottom: 2px;
+    }
+    .clinic-sub {
+      font-size: 9px;
+      color: #6b7280;
+      text-align: center;
+      margin-top: 1px;
+    }
+    .header-rule {
+      border: none;
+      border-top: 2px solid #0B6E6E;
+      margin: 8px 0;
+    }
+
+    /* ── Meta row ── */
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .meta-row .consult-badge {
+      font-size: 9px;
+      font-weight: 700;
+      color: #0B6E6E;
+    }
+    .meta-row .date-id {
+      font-size: 10px;
+      color: #6b7280;
+      text-align: right;
+    }
+
+    /* ── Patient info ── */
+    table.patient-table {
+      width: 100%;
+      border-collapse: collapse;
+      border-top: 0.5px solid #e5e7eb;
+      border-bottom: 0.5px solid #e5e7eb;
+      margin-bottom: 6px;
+    }
+    .p-label {
+      font-size: 8px;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      padding-bottom: 2px;
+    }
+    .p-value {
+      font-size: 11px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    /* ── Section titles ── */
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #0B6E6E;
+      margin-bottom: 4px;
+    }
+
+    /* ── Styled accent boxes ── */
+    .accent-box-diag {
+      font-size: 10px;
+      color: #111827;
+      line-height: 1.5;
+      padding: 8px 12px;
+      background: #f0f9ff;
+      border-left: 3px solid #1d6fa4;
+    }
+    .accent-box-advice {
+      font-size: 10px;
+      color: #111827;
+      line-height: 1.5;
+      padding: 8px 12px;
+      background: #fffbeb;
+      border-left: 3px solid #d97706;
+    }
+
+    /* ── Medicine table ── */
+    table.med-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    table.med-table th {
+      background: #0B6E6E;
+      color: #fff;
+      padding: 7px 6px;
+      text-align: left;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      font-weight: 700;
+    }
+
+    /* ── Signature section ── */
+    .sig-name {
+      font-size: 11px;
+      font-weight: 700;
+      color: #111827;
+      text-align: right;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center;
+      margin-top: 12px;
+      padding-top: 6px;
+      border-top: 0.5px solid #e5e7eb;
+      font-size: 8px;
+      color: #9ca3af;
+    }
+    .hash {
+      font-family: monospace;
+      font-size: 7px;
+      color: #d1d5db;
+      word-break: break-all;
+      margin-top: 2px;
+    }
   </style>
 </head>
 <body>
 
-  <div class="header">
-    <div class="clinic-name">${clinicName}</div>
-    ${clinicSubLine1 ? `<div class="clinic-sub">${clinicSubLine1}</div>` : ''}
-    ${clinicSubLine2 ? `<div class="clinic-sub">${clinicSubLine2}</div>` : ''}
-    <div class="doctor-line">${doctorLine}</div>
-  </div>
+  <!-- ═══════ HEADER ═══════ -->
+  <div class="clinic-name">${clinicName}</div>
+  <div class="doctor-line">${doctorLine}</div>
+  ${clinicSubLine1 ? `<div class="clinic-sub">${clinicSubLine1}</div>` : ''}
+  ${clinicSubLine2 ? `<div class="clinic-sub">${clinicSubLine2}</div>` : ''}
+  <hr class="header-rule" />
 
-  <div class="meta-row">
-    Date: <strong>${dateStr}</strong> &nbsp;|&nbsp; ID: <strong style="color:#1d6fa4;">${rx.id}</strong>
-  </div>
+  <!-- ═══════ META ROW ═══════ -->
+  <table style="width:100%;margin-bottom:6px;"><tr>
+    <td style="text-align:left;vertical-align:middle;">
+      ${consultBadge ? `<span class="consult-badge">${consultBadge}</span>` : ''}
+    </td>
+    <td style="text-align:right;vertical-align:middle;" class="date-id">
+      Date: <strong>${dateStr}</strong> &nbsp;|&nbsp; ID: <strong style="color:#0B6E6E;">${rx.id}</strong>
+    </td>
+  </tr></table>
 
+  <!-- ═══════ PATIENT INFO ═══════ -->
   <table class="patient-table">
     <tr>
-      <td style="width:34%;padding:8px 12px 8px 0;vertical-align:top;">
+      <td style="width:34%;padding:8px 6px;vertical-align:top;">
         <div class="p-label">Patient</div>
         <div class="p-value">${rx.patientName}</div>
       </td>
-      <td style="width:33%;padding:8px 12px;vertical-align:top;">
-        <div class="p-label">Age/Gender</div>
+      <td style="width:33%;padding:8px 6px;vertical-align:top;">
+        <div class="p-label">Age / Gender</div>
         <div class="p-value">${rx.patientAge} yrs / ${rx.patientGender}</div>
       </td>
-      <td style="width:33%;padding:8px 0 8px 12px;vertical-align:top;">
+      <td style="width:33%;padding:8px 6px;vertical-align:top;">
         <div class="p-label">Phone</div>
         <div class="p-value">${rx.patientPhone || '—'}</div>
       </td>
     </tr>
   </table>
 
-  ${rx.symptoms && rx.symptoms.length > 0 ? `
-  <div class="section-title">Symptoms</div>
-  <div class="plain-text">${rx.symptoms.join(', ')}</div>
-  ` : ''}
+  <!-- ═══════ BODY SECTIONS ═══════ -->
+  ${symptomsHtml}
+  ${diagnosisHtml}
+  ${medicinesHtml}
+  ${labTestsHtml}
+  ${adviceHtml}
+  ${followUpHtml}
 
-  ${rx.diagnosis ? `
-  <div class="section-title">Diagnosis</div>
-  <div class="diagnosis-text">${rx.diagnosis}</div>
-  ` : ''}
-
-  ${rx.medicines.length > 0 ? `
-  <div class="section-title">Medicines</div>
-  <table class="med-table">
-    <thead>
+  <!-- ═══════ SIGNATURE ═══════ -->
+  <div style="margin-top:20px;border-top:0.5px solid #e5e7eb;padding-top:10px;">
+    <table style="width:100%;border:none;border-collapse:collapse;">
       <tr>
-        <th style="width:28px;">#</th>
-        <th>Medicine</th>
-        <th>Dosage</th>
-        <th>Duration</th>
-        <th>Instructions</th>
+        <td style="vertical-align:bottom;text-align:left;width:50%;">
+          ${qrHtml}
+        </td>
+        <td style="vertical-align:bottom;text-align:right;width:50%;">
+          ${signatureImg}
+          <div style="display:inline-block;min-width:150px;padding-top:4px;text-align:right;">
+            <div class="sig-name">Dr. ${doctorName}</div>
+            ${doctorSpecialty ? `<div style="font-size:9px;color:#6b7280;text-align:right;">${doctorSpecialty}</div>` : ''}
+            ${regHtml}
+          </div>
+        </td>
       </tr>
-    </thead>
-    <tbody>${medicineRows}</tbody>
-  </table>
-  ` : ''}
+    </table>
+  </div>
 
-  ${rx.labTests.length > 0 ? `
-  <div class="section-title">Lab Tests / Investigations</div>
-  <ul>${labTestsList}</ul>
-  ` : ''}
-
-  ${rx.advice ? `
-  <div class="section-title">Advice</div>
-  <div class="advice-text">${rx.advice}</div>
-  ` : ''}
-
-  ${rx.followUpDate ? `
-  <div class="followup-text">Follow-up: ${new Date(rx.followUpDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
-  ` : ''}
-
-  <table style="width:100%;margin-top:32px;border:none;border-collapse:collapse;">
-    <tr>
-      <td style="vertical-align:bottom;text-align:left;">
-        ${clinicQrBase64 ? `
-          <img src="${clinicQrBase64}" style="height:60px;width:60px;margin-bottom:2px;" />
-          <div style="font-size:9px;color:#9ca3af;">Scan for Payment / Details</div>
-        ` : ''}
-      </td>
-      <td style="vertical-align:bottom;text-align:right;">
-        ${rx.signature && (rx.signature.startsWith('M') || rx.signature.startsWith('m')) ? `
-          <svg width="160" height="56" viewBox="0 0 300 100" style="display:block;margin-left:auto;margin-bottom:4px;">
-            <path d="${rx.signature}" stroke="#111827" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        ` : rx.signature ? `
-          <img src="${rx.signature}" style="max-height:56px;max-width:160px;display:block;margin-left:auto;margin-bottom:4px;" />
-        ` : ''}
-        <div style="border-top:1px solid #374151;display:inline-block;min-width:160px;padding-top:4px;text-align:right;">
-          <div class="sig-name">Dr. ${doctorName}</div>
-          ${doctorReg ? `<div class="sig-reg">Reg. No: ${doctorReg}</div>` : ''}
-        </div>
-      </td>
-    </tr>
-  </table>
-
+  <!-- ═══════ FOOTER ═══════ -->
   <div class="footer">
-    <div>Generated by PrescoPad - Digital Prescription System</div>
+    <div>Generated by PrescoPad &mdash; Digital Prescription System</div>
     ${rx.pdfHash ? `<div class="hash">Verification Hash: ${rx.pdfHash}</div>` : ''}
   </div>
 
