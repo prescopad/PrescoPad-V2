@@ -50,6 +50,9 @@ export async function generatePrescriptionPDF(
   }
 
   let clinicQrBase64 = clinic?.qrCodeUrl || null;
+  if (clinicQrBase64 === 'null' || clinicQrBase64 === 'undefined') {
+    clinicQrBase64 = null;
+  }
   if (clinicQrBase64 && (clinicQrBase64.startsWith('http://') || clinicQrBase64.startsWith('https://'))) {
     const converted = await getBase64FromUrl(clinicQrBase64);
     if (converted) {
@@ -104,6 +107,9 @@ export async function printPrescription(
   }
 
   let clinicQrBase64 = clinic?.qrCodeUrl || null;
+  if (clinicQrBase64 === 'null' || clinicQrBase64 === 'undefined') {
+    clinicQrBase64 = null;
+  }
   if (clinicQrBase64 && (clinicQrBase64.startsWith('http://') || clinicQrBase64.startsWith('https://'))) {
     const converted = await getBase64FromUrl(clinicQrBase64);
     if (converted) {
@@ -268,7 +274,7 @@ function buildPrescriptionHTML(
   const regHtml = doctorReg ? `<div style="font-size:9px;color:#6b7280;text-align:right;">Reg. No: ${doctorReg}</div>` : '';
 
   // ── QR code block ──────────────────────────────────────────────────────
-  const qrHtml = clinicQrBase64
+  const qrHtml = (clinicQrBase64 && clinicQrBase64 !== 'null' && clinicQrBase64 !== 'undefined')
     ? `<div>
          <img src="${clinicQrBase64}" style="height:60px;width:60px;margin-bottom:2px;" />
          <div style="font-size:7px;color:#9ca3af;">Scan for Payment / Details</div>

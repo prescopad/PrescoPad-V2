@@ -520,6 +520,8 @@ async def generate_prescription_pdf(data: dict, *args, **kwargs) -> bytes | io.B
         
         signature_raw    = data.get("doctor_signature") or data.get("doctorSignature") or data.get("signature")
         
+        referred_to      = data.get("referred_to") or data.get("referredTo") or ""
+        
         consultation_type_str = data.get("consultation_type") or data.get("consultationType") or ""
         if consultation_type_str == "new":
             consultation_type_str = "New Consultation"
@@ -555,6 +557,8 @@ async def generate_prescription_pdf(data: dict, *args, **kwargs) -> bytes | io.B
         special_instructions = rx.get("advice") or rx.get("special_instructions") or rx.get("specialInstructions") or rx.get("doctor_notes") or rx.get("doctorNotes") or ""
         
         signature_raw    = rx.get("signature") or rx.get("doctor_signature") or rx.get("doctorSignature")
+        
+        referred_to      = rx.get("referred_to") or rx.get("referredTo") or ""
         
         consultation_type = rx.get("consultation_type") or rx.get("consultationType")
         consultation_type_str = ""
@@ -599,6 +603,25 @@ async def generate_prescription_pdf(data: dict, *args, **kwargs) -> bytes | io.B
     
     # Calculate usable width dynamically from page setup parameters
     usable_width = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT
+    
+    # Add PrescoPad Logo above clinic name
+    logo_base64 = 'iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAQAAAGKDAGaAAAFgUlEQVRYw7WXa2wUVRTH/20p7fZBW0p5iAplaUELCqEFlUCMYKwJKMYgaEwIUpQYNCIWRYgvQtTS6AeiKEqIQDBIAEFAEEm1DUVUoIqPVqhCC/IoammhC9vt/vywM7szu7NLLfHMl7n3nP/533vuPefMSHap8wNIoG57pxIYSErZDyCgB8qogTYUeKT+v2C+SlLanqA3v4EBwSdAasAI4CUUcA7wRsiBMbDIjQDQd4M0ogimtkrbMWSgAVzibUIouTIwfc4kJaVIkpT+PTxLiGplkHCo6Wq+uSOydlrYl3jD1xOSAQ5zdzcA1CJJK/ygOEk91kIhAMsQmeMDq9MRg7ojGExIINkrOAm8D4DHSg9QwiQApiDmeQzFWaDE2LUQ4DXjedimsAQaShgbqXj4NM4ISZpmVeTbdt6vGISrWtElfs76Fuig9+9hij7qFjbTs6GecEnxSdKa4DjbK0nFrzWFTI4yE/jVsvDsMaauP0JxX0ARviBgOg0A3GnZaVpO4N3llZRYYZrez8dhC/KRxrBVYSt37TPVgSh6GQN8FFxSQPLOqbsBSP3Wy2gLwJIRQcC91mPIOGyaTaTKARBxbllH7EtqZkJsgCRlvrTbF21JQiS3KN7pkFNH/BMOiJ+nq8vQTTNI8ChZnZabXJs7bxzf9zjAO/8kTLfNxynXwTpze6PlnG8/o16B+fzTfqCRgq1W62nXtYff1X1orjRiqzn2M8TgySlqAFjNuqDxFdIRKpWeag/Vo7zfJWXXei1引qldGil0i3lAE8iRM/r1cpm3g0aNzAdgB8sACnvm8Bo0AuSLgLwKMeBQjosTEuCAJu0BSPgjsjo5WS0KyUM4Amqf6aO2cFRPUKU0cLAOhvgsgUAUM4u/PQz9lAGwC5/75eDgFlhAHuxKzNmynGtMwDtvMWOmIBahEjbYAACBWYCzY6A18kx3jI2WXolQJvRKMLqb6g5bbO0AnMPlbwSFdBrpwMA4FkOOwJ6mw08q/J8jChZnhtCR9HdfTo2IP6JyGQrfKbVGZBeETWdB723PwzQ/ZISr1IDchs9IcCtnasbWWMvCC3SNUhm2ophJ2raq9pyjycvjbju1yTje/604IzHllMXmH0256BGRBoPTipaO/jv4ktTPaNaC+rd02I5dqUsdTdUXiaGfOYbdKbPi2bnLkjLO3cszGJx+00fRLoemXlg1qkLVDOOxVyM6v4MM4kLlpQh6cObI22OIcatNh0nJj3X/8S2S3aTFhZwJ9/Z5raTZ71npZKUOWVxhPtDuBD5jZI7c+8DJ8/Giga7GcObzCMxMkFKJWlUYm6ztU0cYbihH7lccbv3cw9z+Tuq+yrG8gptNDGHBEcCSXGDjz7NDG6zWQyYLylhTyDSl1nK7VRYHLfxKmOpjCDcaH5dR5T1obPddekel9f95/BPs/ubwa+wB76acTzPRJ6hOWbYGnkEEb/wqlc96eu2CHAJ1cznLg5Fdf8lBQjxBqv87qbcx2MQJFd5HAjMyrSD0bxN6ABbWUiSQ9f4jQnNA7epjwNBSvWVGATmrX+M+xjjUGbLbHbtLLvU7w/dYf/0OrCV0ZTjjUEQ/WOxzJYh+QiRut5GkP6痕迹z/jBms0kartA0ByWIekbbQQ9DnXYHG2gkIJOE7gc5jK32AgyavwOZ/A504N/AjG/px2entvtxf5Hoh5yByspZMN/JMjZbQ/RwRrf1W5RLZMY3Pkd7Ii8q5N71y9rae/CLbI/PY5qfKyk7ttvy13nj3aBIN6XslwZnW2TcX1KMlre8vk7RZB6QsVd7ccD3dUPXTwVhSCuI+lD80fi2iQhb1H+X5ssBEmn9KD+B7k54yut0XX/HfgvpUkmTvPggOsAAAAASUVORK5CYII='
+    try:
+        logo_bytes = base64.b64decode(logo_base64)
+        logo_buf = io.BytesIO(logo_bytes)
+        logo_buf.seek(0)
+        logo_flowable = Image(logo_buf, width=28, height=28, kind="proportional")
+        logo_table = Table([[logo_flowable]], colWidths=[usable_width])
+        logo_table.setStyle(TableStyle([
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        story.append(logo_table)
+    except Exception as e:
+        log.error("Failed to decode PrescoPad logo: %s", e)
 
     # ── 5. Build Header Section ───────────────────────────────────────────
     # Clinic name — bold, large font (18–22pt)
@@ -816,6 +839,12 @@ async def generate_prescription_pdf(data: dict, *args, **kwargs) -> bytes | io.B
             ("VALIGN",        (0, 0), (-1, -1), "TOP"),
         ]))
         story.append(instructions_table)
+        story.append(Spacer(1, 6))
+
+    # ── 12.5 Referred To Section ──────────────────────────────────────────
+    if referred_to:
+        story.append(Paragraph("Referred To", styles["section_title"]))
+        story.append(Paragraph(f"<b>{referred_to}</b>", styles["body_bold"]))
         story.append(Spacer(1, 6))
 
     # ── 13. Follow-Up Date ────────────────────────────────────────────────
