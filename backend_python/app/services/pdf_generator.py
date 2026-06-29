@@ -478,89 +478,141 @@ def _accent_box(text: str, style: ParagraphStyle, bg_color, border_color) -> Tab
 # ═════════════════════════════════════════════════════════════════════════════
 # Main PDF generator
 # ═════════════════════════════════════════════════════════════════════════════
-async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict | None) -> bytes:
+async def generate_prescription_pdf(data: dict, *args, **kwargs) -> bytes | io.BytesIO:
     """Generate a professional A4 prescription PDF using ReportLab platypus.
 
     Args:
-        rx:     Prescription dict (medicines, patient info, signature, etc.)
-        clinic: Clinic document (name, address, phone, email, qrCodeUrl)
-        doctor: Doctor document (name, specialty, reg_number)
+        data:   Can be either:
+                1) A single unified dictionary containing all prescription, patient, clinic,
+                   and doctor fields (when clinic/doctor are not passed).
+                2) A prescription dict (when clinic/doctor are passed).
+        *args:   Positional arguments for backward compatibility (clinic, doctor).
+        **kwargs: Keyword arguments for backward compatibility (clinic, doctor).
 
     Returns:
-        Raw PDF bytes ready for StreamingResponse.
+        If clinic and doctor are provided: raw PDF bytes (for backward compatibility).
+        If clinic and doctor are None: a BytesIO stream containing the PDF.
     """
+    # ── 1. Unify and extract data fields ──────────────────────────────────
+    has_extra_args = len(args) > 0 or "clinic" in kwargs or "doctor" in kwargs
+    is_single_dict = not has_extra_args
 
-    styles = _build_styles()
-    story: list = []  # list of flowables that build the PDF
+    if is_single_dict:
+        # Single dictionary mode
+        doctor_name      = data.get("doctor_name") or data.get("doctorName") or ""
+        qualification    = data.get("qualification") or data.get("specialty") or ""
+        reg_number       = data.get("registration_number") or data.get("registrationNumber") or data.get("reg_number") or data.get("regNumber") or ""
+        
+        clinic_name      = data.get("clinic_name") or data.get("clinicName") or "PrescoPad Clinic"
+        clinic_address   = data.get("clinic_address") or data.get("clinicAddress") or ""
+        clinic_phone     = data.get("clinic_phone") or data.get("clinicPhone") or ""
+        clinic_email     = data.get("clinic_email") or data.get("clinicEmail") or ""
+        
+        patient_name     = data.get("patient_name") or data.get("patientName") or ""
+        patient_age      = data.get("patient_age") or data.get("patientAge") or ""
+        patient_gender   = data.get("patient_gender") or data.get("patientGender") or ""
+        
+        date_val         = data.get("prescription_date") or data.get("prescriptionDate") or data.get("created_at") or data.get("createdAt")
+        
+        medicines        = data.get("medicines") or []
+        
+        special_instructions = data.get("special_instructions") or data.get("specialInstructions") or data.get("doctor_notes") or data.get("doctorNotes") or data.get("advice") or ""
+        
+        signature_raw    = data.get("doctor_signature") or data.get("doctorSignature") or data.get("signature")
+        
+        consultation_type_str = data.get("consultation_type") or data.get("consultationType") or ""
+        if consultation_type_str == "new":
+            consultation_type_str = "New Consultation"
+        elif consultation_type_str == "follow_up":
+            consultation_type_str = "Follow-up"
+            
+        rx_id            = data.get("id") or data.get("_id") or ""
+        pdf_hash         = data.get("pdf_hash") or data.get("pdfHash") or ""
+        clinic_qr_base64 = data.get("qrCodeUrl") or data.get("qr_code_url") or ""
+    else:
+        # 3-argument mode (rx, clinic, doctor)
+        rx = data
+        clinic = args[0] if len(args) > 0 else kwargs.get("clinic")
+        doctor = args[1] if len(args) > 1 else kwargs.get("doctor")
+        
+        doctor_name      = doctor.get("name") if doctor else "Doctor"
+        qualification    = doctor.get("specialty") or doctor.get("qualification") if doctor else ""
+        reg_number       = doctor.get("reg_number") or doctor.get("regNumber") if doctor else ""
+        
+        clinic_name      = clinic.get("name") if clinic else "PrescoPad Clinic"
+        clinic_address   = clinic.get("address") if clinic else ""
+        clinic_phone     = clinic.get("phone") if clinic else ""
+        clinic_email     = clinic.get("email") if clinic else ""
+        
+        patient_name     = rx.get("patient_name") or rx.get("patientName") or ""
+        patient_age      = rx.get("patient_age") or rx.get("patientAge") or ""
+        patient_gender   = rx.get("patient_gender") or rx.get("patientGender") or ""
+        
+        date_val         = rx.get("created_at") or rx.get("prescription_date") or rx.get("prescriptionDate")
+        
+        medicines        = rx.get("medicines") or []
+        
+        special_instructions = rx.get("advice") or rx.get("special_instructions") or rx.get("specialInstructions") or rx.get("doctor_notes") or rx.get("doctorNotes") or ""
+        
+        signature_raw    = rx.get("signature") or rx.get("doctor_signature") or rx.get("doctorSignature")
+        
+        consultation_type = rx.get("consultation_type") or rx.get("consultationType")
+        consultation_type_str = ""
+        if consultation_type == "new":
+            consultation_type_str = "New Consultation"
+        elif consultation_type == "follow_up":
+            consultation_type_str = "Follow-up"
+            
+        rx_id            = rx.get("id") or rx.get("_id") or ""
+        pdf_hash         = rx.get("pdf_hash") or rx.get("pdfHash") or ""
+        clinic_qr_base64 = clinic.get("qrCodeUrl") or clinic.get("qr_code_url") if clinic else None
 
-    # ── 1. Fetch / resolve images ─────────────────────────────────────────
-    signature_raw = rx.get("signature")
+    # ── 2. Fetch / resolve images ─────────────────────────────────────────
     if signature_raw and (signature_raw.startswith("http://") or signature_raw.startswith("https://")):
         converted = await get_base64_from_url(signature_raw)
         if converted:
             signature_raw = converted
 
-    clinic_qr_base64 = clinic.get("qrCodeUrl") or clinic.get("qr_code_url") if clinic else None
     if clinic_qr_base64 and (clinic_qr_base64.startswith("http://") or clinic_qr_base64.startswith("https://")):
         converted = await get_base64_from_url(clinic_qr_base64)
         if converted:
             clinic_qr_base64 = converted
 
-    # ── 2. Extract fields ─────────────────────────────────────────────────
-    clinic_name    = clinic.get("name") if clinic else "PrescoPad Clinic"
-    clinic_address = clinic.get("address") if clinic else ""
-    clinic_phone   = clinic.get("phone") if clinic else ""
-    clinic_email   = clinic.get("email") if clinic else ""
-
-    doctor_name      = doctor.get("name") if doctor else "Doctor"
-    doctor_specialty = doctor.get("specialty") if doctor else ""
-    doctor_reg       = doctor.get("reg_number") or (doctor.get("regNumber") if doctor else "") if doctor else ""
-
-    # Date parsing
-    created_at_val = rx.get("created_at")
-    if isinstance(created_at_val, str):
+    # ── 3. Date parsing ───────────────────────────────────────────────────
+    if isinstance(date_val, str):
         try:
-            dt = datetime.fromisoformat(created_at_val)
+            dt = datetime.fromisoformat(date_val.replace("Z", "+00:00"))
         except Exception:
-            dt = datetime.utcnow()
-    elif isinstance(created_at_val, datetime):
-        dt = created_at_val
+            try:
+                dt = datetime.strptime(date_val, "%Y-%m-%d")
+            except Exception:
+                dt = datetime.utcnow()
+    elif isinstance(date_val, datetime):
+        dt = date_val
     else:
         dt = datetime.utcnow()
     date_str = dt.strftime("%d %b %Y")
 
-    # Consultation type
-    consultation_type = rx.get("consultation_type") or rx.get("consultationType")
-    consultation_type_str = ""
-    if consultation_type == "new":
-        consultation_type_str = "New Consultation"
-    elif consultation_type == "follow_up":
-        consultation_type_str = "Follow-up"
+    # ── 4. Set up document page and styles ────────────────────────────────
+    styles = _build_styles()
+    story: list = []
+    
+    # Calculate usable width dynamically from page setup parameters
+    usable_width = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT
 
-    patient_name   = rx.get("patient_name") or rx.get("patientName") or ""
-    patient_age    = rx.get("patient_age") or rx.get("patientAge") or ""
-    patient_gender = rx.get("patient_gender") or rx.get("patientGender") or ""
-    patient_phone  = rx.get("patient_phone") or rx.get("patientPhone") or "—"
-    rx_id          = rx.get("id") or rx.get("_id") or ""
-    pdf_hash       = rx.get("pdf_hash") or rx.get("pdfHash") or ""
-
-    # ══════════════════════════════════════════════════════════════════════
-    # BUILD THE STORY  (each section is a discrete flowable)
-    # ══════════════════════════════════════════════════════════════════════
-
-    # ── HEADER SECTION ────────────────────────────────────────────────────
-    # Clinic name — bold, large, teal, centered
+    # ── 5. Build Header Section ───────────────────────────────────────────
+    # Clinic name — bold, large font (18–22pt)
     story.append(Paragraph(clinic_name, styles["clinic_name"]))
 
-    # Doctor name + qualification + reg number
+    # Doctor name + qualification + registration number (13–14pt)
     doctor_line_parts = [f"Dr. {doctor_name}"]
-    if doctor_specialty:
-        doctor_line_parts.append(doctor_specialty)
-    if doctor_reg:
-        doctor_line_parts.append(f"Reg: {doctor_reg}")
+    if qualification:
+        doctor_line_parts.append(qualification)
+    if reg_number:
+        doctor_line_parts.append(f"Reg: {reg_number}")
     story.append(Paragraph(" &nbsp;|&nbsp; ".join(doctor_line_parts), styles["doctor_line"]))
 
-    # Clinic address, phone, email — small muted text
+    # Clinic address, phone, email (9–10pt)
     if clinic_address:
         story.append(Paragraph(clinic_address, styles["clinic_sub"]))
     contact_parts = [p for p in [clinic_phone, clinic_email] if p]
@@ -574,155 +626,147 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
         spaceAfter=8, spaceBefore=2,
     ))
 
-    # ── META ROW (Date + Prescription ID) ─────────────────────────────────
-    meta_left_text = ""
+    # ── 6. Meta Row (Consultation Type if available) ──────────────────────
     if consultation_type_str:
-        meta_left_text = f'<font color="#0B6E6E"><b>{consultation_type_str}</b></font>'
+        meta_table = Table(
+            [[
+                Paragraph(f'<font color="#0B6E6E"><b>{consultation_type_str}</b></font>', styles["consult_badge"]),
+                Paragraph("", styles["meta_right"]),
+            ]],
+            colWidths=[usable_width * 0.4, usable_width * 0.6],
+        )
+        meta_table.setStyle(TableStyle([
+            ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
+            ("TOPPADDING",    (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ]))
+        story.append(meta_table)
+        story.append(Spacer(1, 4))
 
-    meta_right_text = (
-        f'Date: <b>{date_str}</b>'
-        f' &nbsp;|&nbsp; ID: <font color="#0B6E6E"><b>{rx_id}</b></font>'
-    )
-    meta_table = Table(
+    # ── 7. Patient Info Section ───────────────────────────────────────────
+    # Left column: Patient Name, Age, Gender | Right column: Date
+    patient_left_text = f"<b>Patient:</b> {patient_name} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Age:</b> {patient_age} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Gender:</b> {patient_gender}"
+    patient_right_text = f"<b>Date:</b> {date_str}"
+    
+    patient_table = Table(
         [[
-            Paragraph(meta_left_text, styles["consult_badge"]),
-            Paragraph(meta_right_text, styles["meta_right"]),
+            Paragraph(patient_left_text, styles["body"]),
+            Paragraph(patient_right_text, styles["meta_right"]),
         ]],
-        colWidths=[CONTENT_WIDTH * 0.4, CONTENT_WIDTH * 0.6],
+        colWidths=[usable_width * 0.75, usable_width * 0.25],
     )
-    meta_table.setStyle(TableStyle([
+    patient_table.setStyle(TableStyle([
         ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
         ("LEFTPADDING",   (0, 0), (-1, -1), 0),
         ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
-        ("TOPPADDING",    (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-    ]))
-    story.append(meta_table)
-    story.append(Spacer(1, 6))
-
-    # ── PATIENT INFO SECTION ──────────────────────────────────────────────
-    # 3-column layout: Patient Name | Age/Gender | Phone
-    # Each cell has a small label on top and the value below
-    col_w = CONTENT_WIDTH / 3
-
-    patient_data = [[
-        # Column 1 — Patient Name
-        [Paragraph("PATIENT", styles["label"]),
-         Paragraph(patient_name, styles["value"])],
-        # Column 2 — Age / Gender
-        [Paragraph("AGE / GENDER", styles["label"]),
-         Paragraph(f"{patient_age} yrs / {patient_gender}", styles["value"])],
-        # Column 3 — Phone
-        [Paragraph("PHONE", styles["label"]),
-         Paragraph(patient_phone, styles["value"])],
-    ]]
-
-    # Flatten: each cell is a mini-table of two rows (label, value)
-    def _cell_stack(items):
-        """Stack Paragraph items vertically inside a cell."""
-        t = Table([[p] for p in items], colWidths=[col_w - 12])
-        t.setStyle(TableStyle([
-            ("LEFTPADDING",   (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
-            ("TOPPADDING",    (0, 0), (-1, -1), 1),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-        ]))
-        return t
-
-    patient_row = [[_cell_stack(cell) for cell in patient_data[0]]]
-    patient_table = Table(patient_row, colWidths=[col_w, col_w, col_w])
-    patient_table.setStyle(TableStyle([
-        ("VALIGN",        (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 6),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 6),
         ("TOPPADDING",    (0, 0), (-1, -1), 8),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-        # Top and bottom border
-        ("LINEABOVE",  (0, 0), (-1, 0),  0.5, GRID_LINE),
-        ("LINEBELOW",  (0, -1), (-1, -1), 0.5, GRID_LINE),
+        ("LINEABOVE",     (0, 0), (-1, -1), 0.5, colors.HexColor("#CCCCCC")),
+        ("LINEBELOW",     (0, 0), (-1, -1), 0.5, colors.HexColor("#CCCCCC")),
     ]))
     story.append(patient_table)
     story.append(Spacer(1, 6))
 
-    # ── SYMPTOMS SECTION ──────────────────────────────────────────────────
-    symptoms = rx.get("symptoms") or []
+    # ── 8. Symptoms Section ───────────────────────────────────────────────
+    symptoms = data.get("symptoms") or [] if is_single_dict else rx.get("symptoms") or []
     if symptoms:
         story.append(Paragraph("Symptoms", styles["section_title"]))
         story.append(Paragraph(", ".join(symptoms), styles["body"]))
         story.append(Spacer(1, 6))
 
-    # ── DIAGNOSIS SECTION ─────────────────────────────────────────────────
-    diagnosis = rx.get("diagnosis")
-    if diagnosis:
+    # ── 9. Diagnosis Section ──────────────────────────────────────────────
+    diag_val = data.get("diagnosis") if is_single_dict else rx.get("diagnosis")
+    if diag_val:
         story.append(Paragraph("Diagnosis", styles["section_title"]))
-        story.append(_accent_box(diagnosis, styles["diagnosis_text"], DIAG_BG, DIAG_BORDER))
+        story.append(_accent_box(diag_val, styles["diagnosis_text"], DIAG_BG, DIAG_BORDER))
         story.append(Spacer(1, 6))
 
-    # ── MEDICINES / Rx SECTION ────────────────────────────────────────────
-    medicines = rx.get("medicines") or []
+    # ── 10. Medicines / Rx Section ────────────────────────────────────────
     if medicines:
-        # "℞" symbol as section header
+        # Bold "Rx" symbol section header
         story.append(Paragraph("℞ &nbsp;Medicines", styles["rx_symbol"]))
 
-        # Build table data — header row + medicine rows
-        header_row = ["#", "Medicine", "Dosage", "Duration", "Instructions"]
-        table_data = [header_row]
+        # Paragraph styles for medicine cell wrapping (wordWrap set to 'CJK')
+        med_header_style = ParagraphStyle(
+            "MedHeader",
+            parent=styles["body"],
+            fontName="Helvetica-Bold",
+            fontSize=10,
+            leading=14,
+            textColor=colors.white,
+        )
+        med_cell_style = ParagraphStyle(
+            "MedCell",
+            parent=styles["body"],
+            fontName="Helvetica",
+            fontSize=10,
+            leading=14,
+            textColor=TEXT_PRIMARY,
+            wordWrap="CJK",
+        )
+        med_cell_style_bold = ParagraphStyle(
+            "MedCellBold",
+            parent=med_cell_style,
+            fontName="Helvetica-Bold",
+        )
 
+        # Header Row wrapped in Paragraph objects
+        table_data = [[
+            Paragraph("#", med_header_style),
+            Paragraph("Medicine Name", med_header_style),
+            Paragraph("Dosage", med_header_style),
+            Paragraph("Duration", med_header_style),
+            Paragraph("Instructions", med_header_style),
+        ]]
+
+        # Populate rows wrapped in Paragraph flowables
         for idx, m in enumerate(medicines):
-            medicine_name = m.get("medicine_name") or m.get("medicineName") or ""
-            med_type      = m.get("type") or ""
-            frequency     = m.get("frequency") or ""
-            duration      = m.get("duration") or ""
-            timing        = m.get("timing") or ""
-            notes         = m.get("notes") or ""
-            timing_instruction = f"{timing} ({notes})" if (timing and notes) else (timing or notes)
+            med_name = m.get("medicine_name") or m.get("medicineName") or m.get("name") or ""
+            med_type = m.get("type") or ""
+            med_display = f"{med_name} ({med_type})" if med_type else med_name
 
-            med_display = f"{medicine_name} ({med_type})" if med_type else medicine_name
+            dosage_val = m.get("dosage") or m.get("frequency") or ""
+            duration_val = m.get("duration") or ""
+            instructions_val = m.get("instructions") or m.get("frequency") or m.get("timing") or m.get("notes") or ""
+
+            # De-duplicate if frequency was already used for dosage
+            if instructions_val == dosage_val:
+                instructions_val = m.get("timing") or m.get("notes") or m.get("instructions") or ""
+
             table_data.append([
-                str(idx + 1),
-                Paragraph(f"<b>{med_display}</b>", styles["body_bold"]),
-                frequency,
-                duration,
-                timing_instruction,
+                Paragraph(str(idx + 1), med_cell_style),
+                Paragraph(med_display, med_cell_style_bold),
+                Paragraph(dosage_val, med_cell_style),
+                Paragraph(duration_val, med_cell_style),
+                Paragraph(instructions_val, med_cell_style),
             ])
 
-        # Column widths: # | Medicine | Dosage | Duration | Instructions
+        # Exact column width proportions summing to usable_width
+        # Column proportions: # (5%), Medicine Name (35%), Dosage (20%), Duration (15%), Instructions (25%)
         med_col_widths = [
-            28,                          # #
-            CONTENT_WIDTH * 0.32,        # Medicine
-            CONTENT_WIDTH * 0.15,        # Dosage
-            CONTENT_WIDTH * 0.15,        # Duration
-            CONTENT_WIDTH - 28 - CONTENT_WIDTH * 0.62,  # Instructions (remainder)
+            usable_width * 0.05,
+            usable_width * 0.35,
+            usable_width * 0.20,
+            usable_width * 0.15,
+            usable_width * 0.25,
         ]
 
         med_table = Table(table_data, colWidths=med_col_widths, repeatRows=1)
 
-        # Build alternating row styles
+        # Table style commands enforcing padding, alignment and grid lines
         med_style_cmds = [
-            # Header row — dark teal background, white bold text
             ("BACKGROUND",    (0, 0), (-1, 0), TEAL_PRIMARY),
-            ("TEXTCOLOR",     (0, 0), (-1, 0), WHITE),
-            ("FONTNAME",      (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE",      (0, 0), (-1, 0), 9),
-
-            # All cells — padding, alignment, font
-            ("FONTNAME",      (0, 1), (-1, -1), "Helvetica"),
-            ("FONTSIZE",      (0, 1), (-1, -1), 10),
-            ("TEXTCOLOR",     (0, 1), (-1, -1), TEXT_PRIMARY),
-            ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 6),
-            ("RIGHTPADDING",  (0, 0), (-1, -1), 6),
+            ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING",  (0, 0), (-1, -1), 8),
             ("TOPPADDING",    (0, 0), (-1, -1), 6),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-
-            # Grid lines
-            ("GRID",          (0, 0), (-1, -1), 0.5, GRID_LINE),
-
-            # # column — center aligned
-            ("ALIGN",         (0, 0), (0, -1), "CENTER"),
+            ("GRID",          (0, 0), (-1, -1), 0.5, colors.HexColor("#CCCCCC")),
         ]
 
-        # Alternating row shading for data rows
+        # Alternating row background shading
         for row_idx in range(1, len(table_data)):
             if row_idx % 2 == 0:
                 med_style_cmds.append(
@@ -733,8 +777,8 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
         story.append(med_table)
         story.append(Spacer(1, 8))
 
-    # ── LAB TESTS SECTION ─────────────────────────────────────────────────
-    lab_tests = rx.get("lab_tests") or rx.get("labTests") or []
+    # ── 11. Lab Tests Section ─────────────────────────────────────────────
+    lab_tests = data.get("lab_tests") or data.get("labTests") or [] if is_single_dict else rx.get("lab_tests") or rx.get("labTests") or []
     if lab_tests:
         story.append(Paragraph("Lab Tests / Investigations", styles["section_title"]))
         for t in lab_tests:
@@ -747,15 +791,27 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
             story.append(Spacer(1, 2))
         story.append(Spacer(1, 6))
 
-    # ── ADVICE SECTION ────────────────────────────────────────────────────
-    advice = rx.get("advice")
-    if advice:
+    # ── 12. Special Instructions / Doctor's Notes Section ─────────────────
+    if special_instructions:
         story.append(Paragraph("Special Instructions / Doctor's Notes", styles["section_title"]))
-        story.append(_accent_box(advice, styles["advice_text"], ADVICE_BG, ADVICE_BORDER))
+        
+        # Paragraph inside a Table with colWidths matching full usable_width
+        instructions_para = Paragraph(special_instructions, styles["body"])
+        instructions_table = Table([[instructions_para]], colWidths=[usable_width])
+        instructions_table.setStyle(TableStyle([
+            ("BACKGROUND",    (0, 0), (-1, -1), colors.HexColor("#F0F7F7")),
+            ("BOX",           (0, 0), (-1, -1), 1, colors.HexColor("#0B6E6E")),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 10),
+            ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
+            ("TOPPADDING",    (0, 0), (-1, -1), 8),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+        ]))
+        story.append(instructions_table)
         story.append(Spacer(1, 6))
 
-    # ── FOLLOW-UP DATE ────────────────────────────────────────────────────
-    follow_up_date = rx.get("follow_up_date") or rx.get("followUpDate")
+    # ── 13. Follow-Up Date ────────────────────────────────────────────────
+    follow_up_date = data.get("follow_up_date") or data.get("followUpDate") if is_single_dict else rx.get("follow_up_date") or rx.get("followUpDate")
     if follow_up_date:
         try:
             fud = datetime.fromisoformat(follow_up_date.replace("Z", "+00:00"))
@@ -765,19 +821,55 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
         story.append(Paragraph(f"Follow-up: {fud_str}", styles["followup"]))
         story.append(Spacer(1, 6))
 
-    # ── SIGNATURE SECTION (bottom of page) ────────────────────────────────
-    # Wrapped in KeepTogether so it never splits across pages
+    # ── 14. Signature Section (Bottom of Page) ────────────────────────────
     sig_elements: list = []
-
-    # Horizontal rule above signature area
+    
+    # Divider line separating signature block from body
     sig_elements.append(Spacer(1, 16))
     sig_elements.append(HRFlowable(
         width="100%", thickness=0.5, color=GRID_LINE,
         spaceAfter=8, spaceBefore=0,
     ))
 
-    # Build the QR code flowable (left side) if available
-    qr_flowable = None
+    # Decode and initialize doctor signature image
+    sig_img = None
+    if signature_raw:
+        sig_img = _decode_signature_to_image(signature_raw, img_width=150, img_height=60)
+
+    # Right side signature block
+    right_items = []
+    if sig_img:
+        # Table aligning the signature image to the right edge
+        img_table = Table([[sig_img]], colWidths=[160])
+        img_table.setStyle(TableStyle([
+            ("ALIGN",         (0, 0), (-1, -1), "RIGHT"),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
+            ("TOPPADDING",    (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        right_items.append(img_table)
+    else:
+        right_items.append(Spacer(1, 40))
+
+    right_items.append(Paragraph(f"Dr. {doctor_name}", styles["sig_name"]))
+    if qualification:
+        right_items.append(Paragraph(qualification, styles["sig_detail"]))
+    if reg_number:
+        right_items.append(Paragraph(f"Reg. No: {reg_number}", styles["sig_detail"]))
+
+    # Right column layout stack
+    right_stack = Table([[item] for item in right_items], colWidths=[usable_width * 0.5])
+    right_stack.setStyle(TableStyle([
+        ("ALIGN",         (0, 0), (-1, -1), "RIGHT"),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
+        ("TOPPADDING",    (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+    ]))
+
+    # Left side content (QR Code if present)
+    left_items = []
     if clinic_qr_base64:
         try:
             if clinic_qr_base64.startswith("data:"):
@@ -788,56 +880,17 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
             qr_buf = io.BytesIO(qr_bytes)
             qr_buf.seek(0)
             qr_flowable = Image(qr_buf, width=60, height=60, kind="proportional")
+            left_items.append(qr_flowable)
+            left_items.append(Spacer(1, 2))
+            left_items.append(Paragraph(
+                '<font color="#9ca3af" size="7">Scan for Payment / Details</font>',
+                styles["body"],
+            ))
         except Exception as e:
             log.warning("Failed to decode QR code image: %s", e)
 
-    # Build the signature image flowable (right side)
-    sig_img = None
-    if signature_raw:
-        sig_img = _decode_signature_to_image(signature_raw, img_width=150, img_height=60)
-
-    # Right-side content: signature image + doctor name + designation
-    right_items = []
-    if sig_img:
-        # Wrap the image in a right-aligned table cell
-        img_table = Table([[sig_img]], colWidths=[160])
-        img_table.setStyle(TableStyle([
-            ("ALIGN",         (0, 0), (-1, -1), "RIGHT"),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
-            ("TOPPADDING",    (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-        ]))
-        right_items.append(img_table)
-
-    right_items.append(Paragraph(f"Dr. {doctor_name}", styles["sig_name"]))
-    if doctor_specialty:
-        right_items.append(Paragraph(doctor_specialty, styles["sig_detail"]))
-    if doctor_reg:
-        right_items.append(Paragraph(f"Reg. No: {doctor_reg}", styles["sig_detail"]))
-
-    # Stack right items vertically
-    right_stack = Table([[item] for item in right_items], colWidths=[CONTENT_WIDTH * 0.45])
-    right_stack.setStyle(TableStyle([
-        ("ALIGN",         (0, 0), (-1, -1), "RIGHT"),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
-        ("TOPPADDING",    (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-    ]))
-
-    # Left-side content: QR code (if available) or empty
-    left_items = []
-    if qr_flowable:
-        left_items.append(qr_flowable)
-        left_items.append(Spacer(1, 2))
-        left_items.append(Paragraph(
-            '<font color="#9ca3af" size="7">Scan for Payment / Details</font>',
-            styles["body"],
-        ))
-
     if left_items:
-        left_stack = Table([[item] for item in left_items], colWidths=[CONTENT_WIDTH * 0.35])
+        left_stack = Table([[item] for item in left_items], colWidths=[usable_width * 0.5])
         left_stack.setStyle(TableStyle([
             ("ALIGN",         (0, 0), (-1, -1), "LEFT"),
             ("VALIGN",        (0, 0), (-1, -1), "BOTTOM"),
@@ -847,12 +900,12 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
             ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
         ]))
     else:
-        left_stack = Paragraph("", styles["body"])  # empty placeholder
+        left_stack = Paragraph("", styles["body"])
 
-    # Combine left and right in a 2-column layout table
+    # Double column layout table for signature section
     sig_layout = Table(
         [[left_stack, right_stack]],
-        colWidths=[CONTENT_WIDTH * 0.5, CONTENT_WIDTH * 0.5],
+        colWidths=[usable_width * 0.5, usable_width * 0.5],
     )
     sig_layout.setStyle(TableStyle([
         ("VALIGN",        (0, 0), (-1, -1), "BOTTOM"),
@@ -863,10 +916,10 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
     ]))
     sig_elements.append(sig_layout)
 
-    # Keep signature block together — never split across pages
+    # Wrap the entire signature block in KeepTogether
     story.append(KeepTogether(sig_elements))
 
-    # ── FOOTER SECTION ────────────────────────────────────────────────────
+    # ── 15. Footer Section ────────────────────────────────────────────────
     story.append(Spacer(1, 12))
     story.append(HRFlowable(
         width="100%", thickness=0.5, color=GRID_LINE,
@@ -876,9 +929,7 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
     if pdf_hash:
         story.append(Paragraph(f"Verification Hash: {pdf_hash}", styles["hash"]))
 
-    # ══════════════════════════════════════════════════════════════════════
-    # BUILD PDF
-    # ══════════════════════════════════════════════════════════════════════
+    # ── 16. Build PDF document ────────────────────────────────────────────
     pdf_buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         pdf_buffer,
@@ -900,10 +951,12 @@ async def generate_prescription_pdf(rx: dict, clinic: dict | None, doctor: dict 
         log.error("ReportLab doc.build raised: %s\n%s", e, traceback.format_exc())
         raise RuntimeError(f"ReportLab failed to build PDF: {e}") from e
 
-    result = pdf_buffer.getvalue()
-    if not result or len(result) < 100:
-        log.error("ReportLab produced empty/tiny PDF (%d bytes)", len(result) if result else 0)
-        raise RuntimeError("ReportLab produced an empty PDF")
-
-    log.info("PDF generated successfully: %d bytes", len(result))
-    return result
+    pdf_buffer.seek(0)
+    
+    # ── 17. Return formats ────────────────────────────────────────────────
+    if is_single_dict:
+        # Returns BytesIO stream as requested for single dict invocations
+        return pdf_buffer
+    else:
+        # Returns raw bytes for 3-argument invocations (preserving backward compatibility)
+        return pdf_buffer.getvalue()
