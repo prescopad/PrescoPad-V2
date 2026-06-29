@@ -305,7 +305,7 @@ export default function MedicinePickerScreen({ navigation }: MedicinePickerScree
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.white }} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.white }} edges={['top', 'left', 'right', 'bottom']}>
     <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
     {/* Custom navigation header */}
     <View style={styles.navHeader}>

@@ -14,7 +14,7 @@ import {
   useWindowDimensions,
   StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -45,6 +45,7 @@ const COMMON_SYMPTOMS = [
 export default function ConsultScreen({ navigation, route }: ConsultScreenProps): React.JSX.Element {
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const { queueItem, patient: initialPatient } = route.params;
   const user = useAuthStore((s) => s.user);
   const getPatientById = usePatientStore((s) => s.getPatientById);
@@ -119,6 +120,7 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
   }, [navigation, initialPatient, queueItem, getPatientById, updateDraft]);
 
   const handleAdviceChange = (text: string) => updateDraft({ advice: text });
+  const handleReferredToChange = (text: string) => updateDraft({ referredTo: text });
 
   const parseFollowUpToDate = (s: string): Date => {
     const today = new Date();
@@ -468,6 +470,20 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
             />
           </View>
 
+          {/* Referred To */}
+          <View style={styles.section}>
+            <View style={styles.sectionLabelRow}>
+              <Text style={styles.sectionTitle}>Referred To (Optional)</Text>
+            </View>
+            <TextInput
+              style={styles.adviceInput}
+              placeholder="E.g. Dr. Smith (Cardiologist)..."
+              placeholderTextColor={COLORS.textLight}
+              value={currentDraft.referredTo}
+              onChangeText={handleReferredToChange}
+            />
+          </View>
+
           {/* Follow-up Date */}
           <View style={styles.section}>
             <View style={styles.sectionLabelRow}>
@@ -504,7 +520,7 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
         </ScrollView>
 
         {/* Preview Button */}
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom > 0 ? insets.bottom : SPACING.lg }]}>
           <TouchableOpacity
             style={[
               styles.previewButton,

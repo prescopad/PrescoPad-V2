@@ -18,6 +18,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ParamListBase } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import * as FileSystem from 'expo-file-system/legacy';
 import SecureStore from '../../utils/secureStore';
@@ -37,6 +38,7 @@ interface ClinicProfileScreenProps {
 
 export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenProps): React.JSX.Element {
   const keyboardHeight = useKeyboardHeight();
+  const insets = useSafeAreaInsets();
   const {
     clinic,
     doctorProfile,
@@ -534,7 +536,7 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
 
         {/* Save Button - Only for doctors/admins */}
         {canEdit && (
-          <View style={styles.bottomBar}>
+          <View style={[styles.bottomBar, { paddingBottom: insets.bottom > 0 ? insets.bottom : SPACING.lg }]}>
             <TouchableOpacity
               style={[styles.saveButton, isSaving && styles.buttonDisabled]}
               onPress={handleSave}

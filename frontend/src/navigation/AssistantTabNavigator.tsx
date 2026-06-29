@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/theme';
 
 // Assistant screens
@@ -61,19 +62,23 @@ function AssistantSettingsStack(): React.JSX.Element {
 
 export default function AssistantTabNavigator(): React.JSX.Element {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+
+  const activeTabBarStyle = {
+    backgroundColor: COLORS.white,
+    borderTopColor: COLORS.border,
+    height: insets.bottom > 0 ? 52 + insets.bottom : 60,
+    paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+    paddingTop: 4,
+  };
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
-        tabBarStyle: {
-          backgroundColor: COLORS.white,
-          borderTopColor: COLORS.border,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 4,
-        },
+        tabBarStyle: activeTabBarStyle,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap = 'home';
@@ -92,7 +97,7 @@ export default function AssistantTabNavigator(): React.JSX.Element {
           const hideTabBarScreens = ['PatientDetail', 'PrescriptionView', 'EditPatient'];
           const tabBarStyle = hideTabBarScreens.includes(focused ?? '')
             ? { display: 'none' as const }
-            : { backgroundColor: COLORS.white, borderTopColor: COLORS.border, height: 60, paddingBottom: 8, paddingTop: 4 };
+            : activeTabBarStyle;
           return { tabBarLabel: t('nav.queue'), tabBarStyle };
         }}
       />

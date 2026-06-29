@@ -116,6 +116,8 @@ class PrescriptionRequest(BaseModel):
     consultation_type: Optional[str] = None
     consultationType: Optional[str] = None
     symptoms: Optional[List[str]] = []
+    referred_to: Optional[str] = None
+    referredTo: Optional[str] = None
 
     medicines: Optional[List[MedicineItem]] = []
     lab_tests: Optional[List[LabTestItem]] = []
@@ -135,6 +137,7 @@ class PrescriptionRequest(BaseModel):
             "advice": self.advice,
             "follow_up_date": self.follow_up_date or self.followUpDate,
             "symptoms": self.symptoms or [],
+            "referred_to": self.referred_to or self.referredTo,
 
             "medicines": [m.normalized() for m in meds],
             "lab_tests": [t.normalized() for t in tests],

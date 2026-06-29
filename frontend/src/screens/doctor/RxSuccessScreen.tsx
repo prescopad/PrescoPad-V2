@@ -13,6 +13,7 @@ import { APP_CONFIG } from '../../constants/config';
 import { usePrescriptionStore } from '../../store/usePrescriptionStore';
 import { useWalletStore } from '../../store/useWalletStore';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PrescriptionActions from '../../components/PrescriptionActions';
 import { DoctorStackParamList } from '../../types/navigation.types';
 
@@ -23,6 +24,7 @@ export default function RxSuccessScreen({ navigation, route }: Props): React.JSX
   const { resetDraft } = usePrescriptionStore();
   const { balance } = useWalletStore();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
 
   const handleBackToQueue = () => {
     resetDraft();
@@ -70,7 +72,7 @@ export default function RxSuccessScreen({ navigation, route }: Props): React.JSX
       </View>
 
       {/* Back to Queue */}
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom > 0 ? insets.bottom : SPACING.lg }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={handleBackToQueue}

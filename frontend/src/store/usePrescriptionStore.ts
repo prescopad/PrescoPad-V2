@@ -54,6 +54,7 @@ const emptyDraft: PrescriptionDraft = {
   advice: '',
   followUpDate: '',
   symptoms: [],
+  referredTo: '',
 
   medicines: [],
   labTests: [],
@@ -173,6 +174,7 @@ export const usePrescriptionStore = create<PrescriptionStore>((set, get) => ({
         diagnosis: draft.diagnosis,
         advice: draft.advice,
         symptoms: draft.symptoms,
+        referredTo: draft.referredTo,
         medicines: draft.medicines,
         labTests: draft.labTests,
       });
@@ -202,6 +204,7 @@ export const usePrescriptionStore = create<PrescriptionStore>((set, get) => ({
         diagnosis: template.diagnosis || state.currentDraft.diagnosis,
         advice: template.advice || state.currentDraft.advice,
         symptoms: [...new Set([...state.currentDraft.symptoms, ...template.symptoms])],
+        referredTo: template.referredTo || state.currentDraft.referredTo,
         medicines: [...state.currentDraft.medicines, ...template.medicines],
         labTests: [...state.currentDraft.labTests, ...template.labTests],
       },

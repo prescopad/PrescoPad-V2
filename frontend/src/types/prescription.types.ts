@@ -38,6 +38,7 @@ export interface Prescription {
   advice: string;
   followUpDate: string | null;
   symptoms: string[];
+  referredTo?: string;
 
   pdfPath: string | null;
   pdfHash: string | null;
@@ -62,6 +63,7 @@ export interface PrescriptionDraft {
   advice: string;
   followUpDate: string;
   symptoms: string[];
+  referredTo?: string;
 
   medicines: Omit<PrescriptionMedicine, 'id' | 'prescriptionId'>[];
   labTests: Omit<PrescriptionLabTest, 'id' | 'prescriptionId'>[];
@@ -74,6 +76,7 @@ export interface PrescriptionTemplate {
   diagnosis: string;
   advice: string;
   symptoms: string[];
+  referredTo?: string;
   medicines: Omit<PrescriptionMedicine, 'id' | 'prescriptionId'>[];
   labTests: Omit<PrescriptionLabTest, 'id' | 'prescriptionId'>[];
   createdAt: string;

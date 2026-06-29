@@ -92,7 +92,7 @@ export default function OTPScreen({ navigation, route }: Props): React.JSX.Eleme
     : (isResending ? t('auth.sending') : t('auth.resend'));
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
       <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
       <KeyboardAvoidingView
         style={styles.container}

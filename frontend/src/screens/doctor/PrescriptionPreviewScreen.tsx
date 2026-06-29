@@ -15,7 +15,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -43,6 +43,7 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
   const prescriptionId = route.params.prescriptionId;
   const readOnly = route.params.readOnly ?? false;
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const { currentPrescription, loadPrescription, finalizePrescription } = usePrescriptionStore();
   const { canAfford, loadBalance, balance } = useWalletStore();
   const { clinic, doctorProfile, loadClinic, loadDoctorProfile } = useClinicStore();
@@ -92,7 +93,7 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
         `You need ${APP_CONFIG.wallet.currencySymbol}${APP_CONFIG.wallet.costPerPrescription} to issue a prescription. Current balance: ${APP_CONFIG.wallet.currencySymbol}${balance}`,
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Recharge', onPress: () => navigation.getParent()?.navigate('DoctorWallet') },
+          { text: 'Recharge', onPress: () => navigation.getParent()?.navigate('DoctorSettings', { screen: 'WalletMain' }) },
         ],
       );
       return;
@@ -377,7 +378,7 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
 
       {/* Sign & Issue Button — hidden in read-only mode */}
       {!readOnly && (
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom > 0 ? insets.bottom : SPACING.lg }]}>
           <View style={styles.costInfo}>
             <Ionicons name="wallet-outline" size={18} color={COLORS.textMuted} />
             <Text style={styles.costText}>

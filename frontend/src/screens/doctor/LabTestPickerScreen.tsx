@@ -15,7 +15,7 @@ import {
   StatusBar,
   Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -42,6 +42,7 @@ type LabTestPickerScreenProps = NativeStackScreenProps<DoctorStackParamList, 'La
 export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenProps): React.JSX.Element {
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const addLabTest = usePrescriptionStore((s) => s.addLabTest);
 
   const [query, setQuery] = useState('');
@@ -439,7 +440,7 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
 
     {/* Bottom bar lives inside KeyboardAvoidingView so it gets pushed up by keyboard */}
     {selectedCount > 0 && (
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom > 0 ? insets.bottom : SPACING.md }]}>
         <View style={styles.selectedInfo}>
           <Text style={styles.selectedCount}>
             {selectedCount} test{selectedCount !== 1 ? 's' : ''} selected

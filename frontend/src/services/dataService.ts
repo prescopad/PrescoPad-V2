@@ -68,6 +68,7 @@ function mapPrescription(row: Record<string, unknown>): Prescription {
     advice: (row.advice as string) ?? '',
     followUpDate: (row.follow_up_date as string) ?? null,
     symptoms: (row.symptoms as string[]) ?? [],
+    referredTo: (row.referred_to as string) ?? '',
     pdfPath: null, // PDF is local-only
     pdfHash: (row.pdf_hash as string) ?? null,
     signature: (row.signature as string) ?? null,
@@ -89,6 +90,7 @@ function mapPrescriptionTemplate(row: Record<string, unknown>): PrescriptionTemp
     diagnosis: (row.diagnosis as string) ?? '',
     advice: (row.advice as string) ?? '',
     symptoms: (row.symptoms as string[]) ?? [],
+    referredTo: (row.referred_to as string) ?? '',
     medicines,
     labTests,
     createdAt: row.created_at as string,
@@ -272,6 +274,7 @@ export async function createPrescription(draft: PrescriptionDraft, doctorId: str
     advice: draft.advice,
     follow_up_date: draft.followUpDate || null,
     symptoms: draft.symptoms,
+    referred_to: draft.referredTo || null,
 
     medicines: draft.medicines.map((m) => ({
       medicine_name: m.medicineName,
@@ -464,6 +467,7 @@ export async function savePrescriptionTemplate(data: Omit<PrescriptionTemplate, 
     diagnosis: data.diagnosis,
     advice: data.advice,
     symptoms: data.symptoms,
+    referred_to: data.referredTo || null,
     medicines: data.medicines.map((m) => ({
       medicine_name: m.medicineName,
       type: m.type,

@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../constants/theme';
 
@@ -13,6 +14,8 @@ import AdminRevenueScreen from '../screens/admin/AdminRevenueScreen';
 const Tab = createBottomTabNavigator();
 
 export default function AdminTabNavigator(): React.JSX.Element {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -22,8 +25,8 @@ export default function AdminTabNavigator(): React.JSX.Element {
         tabBarStyle: {
           backgroundColor: COLORS.white,
           borderTopColor: COLORS.border,
-          height: 60,
-          paddingBottom: 8,
+          height: insets.bottom > 0 ? 52 + insets.bottom : 60,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
           paddingTop: 4,
         },
         tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },

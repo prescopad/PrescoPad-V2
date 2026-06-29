@@ -11,9 +11,7 @@ export type AuthStackParamList = {
 
 export type DoctorTabParamList = {
   DoctorQueue: undefined;
-  NewRx: undefined;
-  DoctorWallet: undefined;
-  DoctorAnalytics: undefined;
+  DoctorPatients: undefined;
   DoctorSettings: undefined;
 };
 
