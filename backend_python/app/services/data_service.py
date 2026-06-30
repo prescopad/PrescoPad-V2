@@ -330,6 +330,7 @@ async def create_prescription(clinic_id: str, doctor_id: str, data: dict) -> dic
         "follow_up_date": data.get("follow_up_date"),
         "symptoms": data.get("symptoms", []),
         "vitals": data.get("vitals"),
+        "referred_to": data.get("referred_to"),
         "medicines": medicines,
         "lab_tests": lab_tests,
         "status": "draft",
