@@ -22,6 +22,34 @@ export async function getFrequentMedicines(limit = 20): Promise<Medicine[]> {
   return rows.map(mapMedicineRow);
 }
 
+export async function getMedicinesByType(types: string[], query = ''): Promise<Medicine[]> {
+  const db = await getDatabase();
+  const placeholders = types.map(() => '?').join(', ');
+  const params: (string | number)[] = [...types];
+  let sql = `SELECT * FROM medicines WHERE type IN (${placeholders})`;
+  if (query.trim()) {
+    sql += ' AND name LIKE ?';
+    params.push(`%${query.trim()}%`);
+  }
+  sql += ' ORDER BY usage_count DESC, name ASC LIMIT 100';
+  const rows = await db.getAllAsync<Record<string, unknown>>(sql, params);
+  return rows.map(mapMedicineRow);
+}
+
+export async function getMedicinesExcludingTypes(excludeTypes: string[], query = ''): Promise<Medicine[]> {
+  const db = await getDatabase();
+  const placeholders = excludeTypes.map(() => '?').join(', ');
+  const params: (string | number)[] = [...excludeTypes];
+  let sql = `SELECT * FROM medicines WHERE (type IS NULL OR type NOT IN (${placeholders}))`;
+  if (query.trim()) {
+    sql += ' AND name LIKE ?';
+    params.push(`%${query.trim()}%`);
+  }
+  sql += ' ORDER BY usage_count DESC, name ASC LIMIT 100';
+  const rows = await db.getAllAsync<Record<string, unknown>>(sql, params);
+  return rows.map(mapMedicineRow);
+}
+
 export async function incrementMedicineUsage(name: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(

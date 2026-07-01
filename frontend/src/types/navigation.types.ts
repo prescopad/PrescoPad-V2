@@ -24,7 +24,8 @@ export type AssistantTabParamList = {
 export type DoctorStackParamList = {
   DoctorDashboard: undefined;
   Consult: { queueItem: QueueItem; patient: Patient; consultType?: 'new' | 'follow_up' };
-  MedicinePicker: undefined;
+  MedicineCategory: undefined;
+  MedicinePicker: { types?: string[]; excludeTypes?: string[] } | undefined;
   LabTestPicker: undefined;
   PrescriptionPreview: { prescriptionId: string; readOnly?: boolean };
   DigitalSignature: { prescriptionId: string };

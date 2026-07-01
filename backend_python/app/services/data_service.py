@@ -294,41 +294,70 @@ async def get_patient_prescriptions(clinic_id: str, patient_id: str) -> list:
     return [serialize_doc(p) async for p in cursor]
 
 
-async def regenerate_casebook_summary(clinic_id: str, patient_id: str) -> Optional[str]:
-    """Rebuild the patient's short casebook summary from their latest finalized
-    prescription. Template-based (no LLM) so it's instant and free to read."""
+def _format_date(value) -> str:
+    """Accepts a datetime or an ISO-formatted string (as produced by
+    serialize_doc) and returns e.g. '12 Jun 2026'."""
+    if isinstance(value, datetime):
+        return value.strftime("%d %b %Y")
+    if isinstance(value, str) and value:
+        try:
+            return datetime.fromisoformat(value).strftime("%d %b %Y")
+        except ValueError:
+            return value
+    return ""
+
+
+def build_casebook_entry_summary(prescription: dict) -> Optional[str]:
+    """Template-based (no LLM) one-line summary for a single finalized
+    prescription, e.g. "Type 2 Diabetes diagnosed on 12 Jun 2026. Prescribed
+    Metformin 500mg, Glimepiride 1mg. Follow-up on 15 Jul 2026."."""
+    date_str = _format_date(prescription.get("created_at"))
+
+    parts = []
+    if prescription.get("diagnosis"):
+        parts.append(f"{prescription['diagnosis']} diagnosed on {date_str}." if date_str else f"{prescription['diagnosis']}.")
+    medicine_parts = [
+        f"{m.get('medicine_name')} {m.get('dosage')}".strip() if m.get("dosage") else m.get("medicine_name")
+        for m in (prescription.get("medicines") or []) if m.get("medicine_name")
+    ]
+    if medicine_parts:
+        parts.append(f"Prescribed {', '.join(medicine_parts[:3])}.")
+    if prescription.get("referred_to"):
+        parts.append(f"Referred to {prescription['referred_to']}.")
+    follow_up_str = _format_date(prescription.get("follow_up_date"))
+    if follow_up_str:
+        parts.append(f"Follow-up on {follow_up_str}.")
+
+    return " ".join(parts) or None
+
+
+async def regenerate_casebook_summary(clinic_id: str, patient_id: str) -> list:
+    """Rebuild the patient's full casebook timeline — one templated summary
+    entry per finalized prescription, newest first."""
     db = get_db()
     prescriptions = await get_patient_prescriptions(clinic_id, patient_id)
     finalized = [p for p in prescriptions if p.get("status") == "finalized"]
-    if not finalized:
-        return None
 
-    latest = finalized[0]
-    created_at = latest.get("created_at")
-    date_str = created_at.strftime("%d %b %Y") if isinstance(created_at, datetime) else ""
+    entries = []
+    for rx in finalized:
+        summary = build_casebook_entry_summary(rx)
+        if not summary:
+            continue
+        entries.append({
+            "date": rx.get("created_at"),
+            "summary": summary,
+            "prescription_id": rx.get("id"),
+        })
 
-    parts = []
-    if latest.get("diagnosis"):
-        parts.append(f"{latest['diagnosis']} diagnosed on {date_str}." if date_str else f"{latest['diagnosis']}.")
-    medicine_names = [m.get("medicine_name") for m in (latest.get("medicines") or []) if m.get("medicine_name")]
-    if medicine_names:
-        parts.append(f"Prescribed {', '.join(medicine_names[:3])}.")
-    if latest.get("referred_to"):
-        parts.append(f"Referred to {latest['referred_to']}.")
-    follow_up_date = latest.get("follow_up_date")
-    if follow_up_date:
-        follow_up_str = follow_up_date.strftime("%d %b %Y") if isinstance(follow_up_date, datetime) else str(follow_up_date)
-        parts.append(f"Follow-up on {follow_up_str}.")
-
-    summary = " ".join(parts) or None
     await db.patients.update_one(
         {"_id": ObjectId(patient_id), "clinic_id": clinic_id},
         {"$set": {
-            "casebook_summary": summary,
+            "casebook_summary": entries[0]["summary"] if entries else None,
+            "casebook_entries": entries,
             "casebook_summary_updated_at": datetime.now(timezone.utc),
         }}
     )
-    return summary
+    return entries
 
 
 async def get_prescription(clinic_id: str, prescription_id: str) -> dict:

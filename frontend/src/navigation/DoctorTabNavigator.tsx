@@ -14,6 +14,7 @@ import api from '../services/api';
 // Doctor screens
 import DoctorDashboard from '../screens/doctor/DoctorDashboard';
 import ConsultScreen from '../screens/doctor/ConsultScreen';
+import MedicineCategoryScreen from '../screens/doctor/MedicineCategoryScreen';
 import MedicinePickerScreen from '../screens/doctor/MedicinePickerScreen';
 import LabTestPickerScreen from '../screens/doctor/LabTestPickerScreen';
 import PrescriptionPreviewScreen from '../screens/doctor/PrescriptionPreviewScreen';
@@ -49,6 +50,7 @@ function DoctorQueueStack(): React.JSX.Element {
     <QueueStack.Navigator screenOptions={{ headerShown: false }}>
       <QueueStack.Screen name="DoctorDashboard" component={DoctorDashboard} />
       <QueueStack.Screen name="Consult" component={ConsultScreen} options={{ headerShown: false }} />
+      <QueueStack.Screen name="MedicineCategory" component={MedicineCategoryScreen} options={{ headerShown: false }} />
       <QueueStack.Screen name="MedicinePicker" component={MedicinePickerScreen} options={{ headerShown: false }} />
       <QueueStack.Screen name="LabTestPicker" component={LabTestPickerScreen} options={{ headerShown: false }} />
       <QueueStack.Screen name="PrescriptionPreview" component={PrescriptionPreviewScreen} options={{ headerShown: false }} />
@@ -162,7 +164,7 @@ export default function DoctorTabNavigator(): React.JSX.Element {
         component={DoctorQueueStack}
         options={({ route }) => {
           const focused = getFocusedRouteNameFromRoute(route);
-          const hideTabBarScreens = ['Consult', 'MedicinePicker', 'LabTestPicker', 'PrescriptionPreview', 'RxSuccess', 'PatientHistory', 'EditPatient'];
+          const hideTabBarScreens = ['Consult', 'MedicineCategory', 'MedicinePicker', 'LabTestPicker', 'PrescriptionPreview', 'RxSuccess', 'PatientHistory', 'EditPatient'];
           const tabBarStyle = hideTabBarScreens.includes(focused ?? '')
             ? { display: 'none' as const }
             : activeTabBarStyle;

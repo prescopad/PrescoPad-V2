@@ -20,8 +20,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { usePrescriptionStore } from '../../store/usePrescriptionStore';
 import {
-  searchAllMedicines,
-  getAllFrequentMedicines,
+  getMedicinesByCategory,
+  getMedicinesOutsideCategories,
   addCustomMedicine,
   incrementMedicineUsage,
 } from '../../services/dataService';
@@ -38,9 +38,12 @@ import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 
 type MedicinePickerScreenProps = NativeStackScreenProps<DoctorStackParamList, 'MedicinePicker'>;
 
-export default function MedicinePickerScreen({ navigation }: MedicinePickerScreenProps): React.JSX.Element {
+export default function MedicinePickerScreen({ navigation, route }: MedicinePickerScreenProps): React.JSX.Element {
   const { t } = useTranslation();
   const addMedicine = usePrescriptionStore((s) => s.addMedicine);
+  const categoryTypes = route.params?.types;
+  const excludeTypes = route.params?.excludeTypes;
+  const defaultType = categoryTypes?.[0] ?? MedicineType.TABLET;
 
   const [query, setQuery] = useState('');
   const [medicines, setMedicines] = useState<Medicine[]>([]);
@@ -52,7 +55,7 @@ export default function MedicinePickerScreen({ navigation }: MedicinePickerScree
   const [duration, setDuration] = useState('');
   const [timing, setTiming] = useState('');
   const [notes, setNotes] = useState('');
-  const [selectedType, setSelectedType] = useState<string>(MedicineType.TABLET);
+  const [selectedType, setSelectedType] = useState<string>(defaultType);
   const [dosage, setDosage] = useState('');
 
   // Custom medicine
@@ -63,22 +66,27 @@ export default function MedicinePickerScreen({ navigation }: MedicinePickerScree
   const searchInputRef = useRef<TextInput>(null);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const fetchMedicines = useCallback(async (text: string) => {
+    if (excludeTypes) return getMedicinesOutsideCategories(excludeTypes, text);
+    return getMedicinesByCategory(categoryTypes ?? [], text);
+  }, [categoryTypes, excludeTypes]);
+
   useEffect(() => {
-    loadFrequentMedicines();
+    loadMedicines('');
     // Auto-focus search bar
     setTimeout(() => searchInputRef.current?.focus(), 300);
   }, []);
 
-  const loadFrequentMedicines = async () => {
+  const loadMedicines = async (text: string) => {
     try {
-      const frequentMeds = await getAllFrequentMedicines();
-      setMedicines(frequentMeds);
+      const results = await fetchMedicines(text);
+      setMedicines(results);
     } catch {
       // Silently handle
     }
   };
 
-  const handleSearch = useCallback(async (text: string) => {
+  const handleSearch = useCallback((text: string) => {
     setQuery(text);
     setSelectedMedicine(null);
     setShowCustomForm(false);
@@ -87,24 +95,18 @@ export default function MedicinePickerScreen({ navigation }: MedicinePickerScree
       clearTimeout(searchTimeout.current);
     }
 
-    if (text.trim().length === 0) {
-      loadFrequentMedicines();
-      return;
-    }
-
     searchTimeout.current = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const results = await searchAllMedicines(text.trim());
-        // Sort alphabetically
-        setMedicines(results.sort((a, b) => a.name.localeCompare(b.name)));
+        const results = await fetchMedicines(text.trim());
+        setMedicines(results);
       } catch {
         // Silently handle
       } finally {
         setIsSearching(false);
       }
-    }, 50);
-  }, []);
+    }, 200);
+  }, [fetchMedicines]);
 
   const handleSelectMedicine = (medicine: Medicine) => {
     setSelectedMedicine(medicine);
@@ -146,7 +148,7 @@ export default function MedicinePickerScreen({ navigation }: MedicinePickerScree
     setSelectedMedicine(null);
     setShowCustomForm(true);
     setCustomName(query);
-    setSelectedType(MedicineType.TABLET);
+    setSelectedType(defaultType);
     setCustomStrength('');
   };
 
@@ -247,28 +249,28 @@ export default function MedicinePickerScreen({ navigation }: MedicinePickerScree
             value={customName}
             onChangeText={setCustomName}
           />
+
+          <Text style={styles.fieldLabel}>Type</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipsContainer}
+          >
+            {Object.values(MedicineType).map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={[styles.chip, selectedType === type && styles.chipSelected]}
+                onPress={() => setSelectedType(type)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.chipText, selectedType === type && styles.chipTextSelected]}>
+                  {type}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </>
       )}
-
-      <Text style={styles.fieldLabel}>Type</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipsContainer}
-      >
-        {Object.values(MedicineType).map((type) => (
-          <TouchableOpacity
-            key={type}
-            style={[styles.chip, selectedType === type && styles.chipSelected]}
-            onPress={() => setSelectedType(type)}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.chipText, selectedType === type && styles.chipTextSelected]}>
-              {type}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
 
       <Text style={styles.fieldLabel}>{showCustomForm ? 'Strength' : 'Dosage'}</Text>
       <TextInput
@@ -366,15 +368,13 @@ export default function MedicinePickerScreen({ navigation }: MedicinePickerScree
             keyboardShouldPersistTaps="handled"
             ListHeaderComponent={
               <Text style={styles.listHeader}>
-                {query.length > 0 ? 'Search Results' : 'Frequently Used'}
+                {query.length > 0 ? 'Search Results' : 'Medicines'}
               </Text>
             }
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Ionicons name="medical-outline" size={40} color={COLORS.textLight} />
-                <Text style={styles.emptyText}>
-                  {query.length > 0 ? 'No medicines found' : 'No frequent medicines'}
-                </Text>
+                <Text style={styles.emptyText}>No medicines found</Text>
               </View>
             }
             ListFooterComponent={

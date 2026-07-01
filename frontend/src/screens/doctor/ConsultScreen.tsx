@@ -155,7 +155,7 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
 
   const todayAtMidnight = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
 
-  const handleAddMedicine = () => navigation.navigate('MedicinePicker');
+  const handleAddMedicine = () => navigation.navigate('MedicineCategory');
   const handleAddLabTest = () => navigation.navigate('LabTestPicker');
 
   const handleRemoveMedicine = (index: number) => {

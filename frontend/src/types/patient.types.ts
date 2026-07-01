@@ -18,6 +18,13 @@ export interface Patient {
   updatedAt: string;
   casebookSummary?: string | null;
   casebookSummaryUpdatedAt?: string | null;
+  casebookEntries?: CasebookEntry[];
+}
+
+export interface CasebookEntry {
+  date: string;
+  summary: string;
+  prescriptionId: string;
 }
 
 export interface PatientFormData {

@@ -52,8 +52,17 @@ export default function CasebookListScreen({ navigation }: CasebookListScreenPro
     setExpandedId((current) => (current === id ? null : id));
   };
 
+  const formatDate = (dateStr: string): string => {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleDateString('en-IN', {
+      day: 'numeric', month: 'short', year: 'numeric',
+    });
+  };
+
   const renderPatient = ({ item }: { item: Patient }) => {
     const isExpanded = expandedId === item.id;
+    const entries = item.casebookEntries ?? [];
+
     return (
       <TouchableOpacity
         style={styles.card}
@@ -68,15 +77,26 @@ export default function CasebookListScreen({ navigation }: CasebookListScreenPro
             color={COLORS.textMuted}
           />
         </View>
+
         {!isExpanded && (
           <Text style={styles.previewText} numberOfLines={1}>
-            {item.casebookSummary || 'No visits yet'}
+            {entries[0]?.summary || 'No visits yet'}
           </Text>
         )}
+
         {isExpanded && (
-          <Text style={styles.fullText}>
-            {item.casebookSummary || 'No visits yet'}
-          </Text>
+          entries.length > 0 ? (
+            <View style={styles.historyList}>
+              {entries.map((entry) => (
+                <View key={entry.prescriptionId} style={styles.historyEntry}>
+                  <Text style={styles.historyDate}>{formatDate(entry.date)}</Text>
+                  <Text style={styles.fullText}>{entry.summary}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.fullText}>No visits yet</Text>
+          )
         )}
       </TouchableOpacity>
     );
@@ -202,10 +222,24 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
   },
   fullText: {
-    marginTop: SPACING.sm,
     fontSize: 14,
     color: COLORS.text,
     lineHeight: 20,
+  },
+  historyList: {
+    marginTop: SPACING.sm,
+    gap: SPACING.md,
+  },
+  historyEntry: {
+    borderLeftWidth: 2,
+    borderLeftColor: COLORS.primary,
+    paddingLeft: SPACING.sm,
+  },
+  historyDate: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.primary,
+    marginBottom: 2,
   },
   emptyContainer: {
     alignItems: 'center',

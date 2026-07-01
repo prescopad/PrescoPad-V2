@@ -1,9 +1,9 @@
 import api from './api';
-import { Patient, PatientFormData } from '../types/patient.types';
+import { Patient, PatientFormData, CasebookEntry } from '../types/patient.types';
 import { Prescription, PrescriptionDraft, PrescriptionMedicine, PrescriptionLabTest, PrescriptionStatus, PrescriptionTemplate } from '../types/prescription.types';
 import { QueueItem, QueueStatus } from '../types/queue.types';
 import { Medicine, LabTest } from '../types/medicine.types';
-import { searchMedicines as searchLocalMedicines, getFrequentMedicines as getLocalFrequentMedicines, searchLabTests as searchLocalLabTests, getFrequentLabTests as getLocalFrequentLabTests, getLabTestsByCategory as getLocalLabTestsByCategory, incrementMedicineUsage as incrementLocalMedicineUsage, incrementLabTestUsage as incrementLocalLabTestUsage } from '../database/queries/medicineQueries';
+import { searchMedicines as searchLocalMedicines, getFrequentMedicines as getLocalFrequentMedicines, getMedicinesByType as getLocalMedicinesByType, getMedicinesExcludingTypes as getLocalMedicinesExcludingTypes, searchLabTests as searchLocalLabTests, getFrequentLabTests as getLocalFrequentLabTests, getLabTestsByCategory as getLocalLabTestsByCategory, incrementMedicineUsage as incrementLocalMedicineUsage, incrementLabTestUsage as incrementLocalLabTestUsage } from '../database/queries/medicineQueries';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAPPING HELPERS (snake_case backend → camelCase frontend)
@@ -24,6 +24,11 @@ function mapPatient(row: Record<string, unknown>): Patient {
     updatedAt: (row.updated_at as string) ?? '',
     casebookSummary: (row.casebook_summary as string) ?? null,
     casebookSummaryUpdatedAt: (row.casebook_summary_updated_at as string) ?? null,
+    casebookEntries: ((row.casebook_entries as Record<string, unknown>[]) ?? []).map((e) => ({
+      date: (e.date as string) ?? '',
+      summary: (e.summary as string) ?? '',
+      prescriptionId: (e.prescription_id as string) ?? '',
+    })) as CasebookEntry[],
   };
 }
 
@@ -374,6 +379,50 @@ export async function getAllFrequentMedicines(limit = 20): Promise<Medicine[]> {
     }
   }
   return merged.sort((a, b) => b.usageCount - a.usageCount).slice(0, limit);
+}
+
+export async function getMedicinesByCategory(types: string[], query = ''): Promise<Medicine[]> {
+  const localResults = await getLocalMedicinesByType(types, query);
+
+  let cloudResults: Medicine[] = [];
+  try {
+    const res = await api.get('/data/custom-medicines', { params: query.trim() ? { q: query.trim() } : {} });
+    cloudResults = (res.data.medicines as Record<string, unknown>[])
+      .map(mapCustomMedicine)
+      .filter((m) => types.includes(m.type));
+  } catch { /* cloud unavailable, use local only */ }
+
+  const seen = new Set(localResults.map((m) => m.name.toLowerCase()));
+  const merged = [...localResults];
+  for (const m of cloudResults) {
+    if (!seen.has(m.name.toLowerCase())) {
+      seen.add(m.name.toLowerCase());
+      merged.push(m);
+    }
+  }
+  return merged.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function getMedicinesOutsideCategories(excludeTypes: string[], query = ''): Promise<Medicine[]> {
+  const localResults = await getLocalMedicinesExcludingTypes(excludeTypes, query);
+
+  let cloudResults: Medicine[] = [];
+  try {
+    const res = await api.get('/data/custom-medicines', { params: query.trim() ? { q: query.trim() } : {} });
+    cloudResults = (res.data.medicines as Record<string, unknown>[])
+      .map(mapCustomMedicine)
+      .filter((m) => !excludeTypes.includes(m.type));
+  } catch { /* cloud unavailable, use local only */ }
+
+  const seen = new Set(localResults.map((m) => m.name.toLowerCase()));
+  const merged = [...localResults];
+  for (const m of cloudResults) {
+    if (!seen.has(m.name.toLowerCase())) {
+      seen.add(m.name.toLowerCase());
+      merged.push(m);
+    }
+  }
+  return merged.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function addCustomMedicine(name: string, type: string, strength: string): Promise<Medicine> {
