@@ -31,6 +31,7 @@ import {
   FREQUENCY_OPTIONS,
   TIMING_OPTIONS,
   DURATION_OPTIONS,
+  getDosageHint,
 } from '../../types/medicine.types';
 import { DoctorStackParamList } from '../../types/navigation.types';
 import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
@@ -51,11 +52,12 @@ export default function MedicinePickerScreen({ navigation }: MedicinePickerScree
   const [duration, setDuration] = useState('');
   const [timing, setTiming] = useState('');
   const [notes, setNotes] = useState('');
+  const [selectedType, setSelectedType] = useState<string>(MedicineType.TABLET);
+  const [dosage, setDosage] = useState('');
 
   // Custom medicine
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customName, setCustomName] = useState('');
-  const [customType, setCustomType] = useState<string>(MedicineType.TABLET);
   const [customStrength, setCustomStrength] = useState('');
 
   const searchInputRef = useRef<TextInput>(null);
@@ -110,6 +112,8 @@ export default function MedicinePickerScreen({ navigation }: MedicinePickerScree
     setDuration('');
     setTiming('');
     setNotes('');
+    setSelectedType(medicine.type || MedicineType.TABLET);
+    setDosage(medicine.strength || '');
     setShowCustomForm(false);
   };
 
@@ -120,8 +124,8 @@ export default function MedicinePickerScreen({ navigation }: MedicinePickerScree
     // or write the medicine without them.
     addMedicine({
       medicineName: selectedMedicine.name,
-      type: selectedMedicine.type,
-      dosage: selectedMedicine.strength,
+      type: selectedType,
+      dosage,
       frequency,
       duration,
       timing,
@@ -142,7 +146,7 @@ export default function MedicinePickerScreen({ navigation }: MedicinePickerScree
     setSelectedMedicine(null);
     setShowCustomForm(true);
     setCustomName(query);
-    setCustomType(MedicineType.TABLET);
+    setSelectedType(MedicineType.TABLET);
     setCustomStrength('');
   };
 
@@ -154,11 +158,11 @@ export default function MedicinePickerScreen({ navigation }: MedicinePickerScree
     // frequency / duration / timing are optional.
 
     try {
-      const custom = await addCustomMedicine(customName.trim(), customType, customStrength);
+      const custom = await addCustomMedicine(customName.trim(), selectedType, customStrength);
 
       addMedicine({
         medicineName: custom.name,
-        type: custom.type,
+        type: selectedType,
         dosage: customStrength,
         frequency,
         duration,
@@ -243,37 +247,37 @@ export default function MedicinePickerScreen({ navigation }: MedicinePickerScree
             value={customName}
             onChangeText={setCustomName}
           />
-
-          <Text style={styles.fieldLabel}>Type</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.chipsContainer}
-          >
-            {Object.values(MedicineType).map((type) => (
-              <TouchableOpacity
-                key={type}
-                style={[styles.chip, customType === type && styles.chipSelected]}
-                onPress={() => setCustomType(type)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.chipText, customType === type && styles.chipTextSelected]}>
-                  {type}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          <Text style={styles.fieldLabel}>Strength</Text>
-          <TextInput
-            style={styles.textInputField}
-            placeholder="e.g., 500mg, 10ml"
-            placeholderTextColor={COLORS.textLight}
-            value={customStrength}
-            onChangeText={setCustomStrength}
-          />
         </>
       )}
+
+      <Text style={styles.fieldLabel}>Type</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipsContainer}
+      >
+        {Object.values(MedicineType).map((type) => (
+          <TouchableOpacity
+            key={type}
+            style={[styles.chip, selectedType === type && styles.chipSelected]}
+            onPress={() => setSelectedType(type)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.chipText, selectedType === type && styles.chipTextSelected]}>
+              {type}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <Text style={styles.fieldLabel}>{showCustomForm ? 'Strength' : 'Dosage'}</Text>
+      <TextInput
+        style={styles.textInputField}
+        placeholder={getDosageHint(selectedType)}
+        placeholderTextColor={COLORS.textLight}
+        value={showCustomForm ? customStrength : dosage}
+        onChangeText={showCustomForm ? setCustomStrength : setDosage}
+      />
 
       <Text style={styles.fieldLabel}>{t('consult.frequency')}</Text>
       {renderOptionChips(FREQUENCY_OPTIONS, frequency, setFrequency)}

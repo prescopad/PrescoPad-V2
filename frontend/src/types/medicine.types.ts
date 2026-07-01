@@ -14,6 +14,28 @@ export enum MedicineType {
   SUPPOSITORY = 'Suppository',
 }
 
+export function getDosageHint(type: string): string {
+  switch (type) {
+    case MedicineType.TABLET:
+    case MedicineType.CAPSULE:
+      return 'e.g., 500mg';
+    case MedicineType.SYRUP:
+    case MedicineType.DROPS:
+      return 'e.g., 5ml';
+    case MedicineType.INJECTION:
+      return 'e.g., 1ml IM/IV/SC';
+    case MedicineType.CREAM:
+    case MedicineType.OINTMENT:
+    case MedicineType.GEL:
+      return 'e.g., Apply thin layer';
+    case MedicineType.INHALER:
+    case MedicineType.SPRAY:
+      return 'e.g., 2 puffs';
+    default:
+      return 'e.g., dosage';
+  }
+}
+
 export interface Medicine {
   id: string;
   name: string;

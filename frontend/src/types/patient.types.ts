@@ -16,6 +16,8 @@ export interface Patient {
   allergies: string;
   createdAt: string;
   updatedAt: string;
+  casebookSummary?: string | null;
+  casebookSummaryUpdatedAt?: string | null;
 }
 
 export interface PatientFormData {

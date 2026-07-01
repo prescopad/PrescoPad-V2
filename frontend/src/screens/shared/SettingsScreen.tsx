@@ -107,6 +107,13 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps): Rea
       showArrow: true,
     },
     {
+      icon: 'book-outline',
+      label: 'Casebook',
+      subtitle: 'Quick patient summaries',
+      onPress: () => navigation.navigate('Casebook'),
+      showArrow: true,
+    },
+    {
       icon: 'sync-outline',
       label: t('settings.connection'),
       subtitle: 'Connect doctor and assistant devices',

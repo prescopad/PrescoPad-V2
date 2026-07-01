@@ -33,6 +33,7 @@ import ClinicProfileScreen from '../screens/shared/ClinicProfileScreen';
 import ConnectionScreen from '../screens/shared/ConnectionScreen';
 import PatientFormScreen from '../screens/shared/PatientFormScreen';
 import MedicineTestManagementScreen from '../screens/settings/MedicineTestManagementScreen';
+import CasebookListScreen from '../screens/settings/CasebookListScreen';
 import UserProfileScreen from '../screens/shared/UserProfileScreen';
 
 const Tab = createBottomTabNavigator();
@@ -96,6 +97,7 @@ function DoctorSettingsStack(): React.JSX.Element {
       <SettingsStack.Screen name="ClinicProfile" component={ClinicProfileScreen} options={{ headerShown: false }} />
       <SettingsStack.Screen name="ConnectionSettings" component={ConnectionScreen} options={{ headerShown: false }} />
       <SettingsStack.Screen name="MedicineTestManagement" component={MedicineTestManagementScreen} options={{ headerShown: false }} />
+      <SettingsStack.Screen name="Casebook" component={CasebookListScreen} options={{ headerShown: false }} />
       <SettingsStack.Screen name="WalletMain" component={WalletScreen} options={{ headerShown: false }} />
       <SettingsStack.Screen name="AnalyticsMain" component={AnalyticsScreen} options={{ headerShown: false }} />
     </SettingsStack.Navigator>

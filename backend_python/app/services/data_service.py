@@ -294,6 +294,43 @@ async def get_patient_prescriptions(clinic_id: str, patient_id: str) -> list:
     return [serialize_doc(p) async for p in cursor]
 
 
+async def regenerate_casebook_summary(clinic_id: str, patient_id: str) -> Optional[str]:
+    """Rebuild the patient's short casebook summary from their latest finalized
+    prescription. Template-based (no LLM) so it's instant and free to read."""
+    db = get_db()
+    prescriptions = await get_patient_prescriptions(clinic_id, patient_id)
+    finalized = [p for p in prescriptions if p.get("status") == "finalized"]
+    if not finalized:
+        return None
+
+    latest = finalized[0]
+    created_at = latest.get("created_at")
+    date_str = created_at.strftime("%d %b %Y") if isinstance(created_at, datetime) else ""
+
+    parts = []
+    if latest.get("diagnosis"):
+        parts.append(f"{latest['diagnosis']} diagnosed on {date_str}." if date_str else f"{latest['diagnosis']}.")
+    medicine_names = [m.get("medicine_name") for m in (latest.get("medicines") or []) if m.get("medicine_name")]
+    if medicine_names:
+        parts.append(f"Prescribed {', '.join(medicine_names[:3])}.")
+    if latest.get("referred_to"):
+        parts.append(f"Referred to {latest['referred_to']}.")
+    follow_up_date = latest.get("follow_up_date")
+    if follow_up_date:
+        follow_up_str = follow_up_date.strftime("%d %b %Y") if isinstance(follow_up_date, datetime) else str(follow_up_date)
+        parts.append(f"Follow-up on {follow_up_str}.")
+
+    summary = " ".join(parts) or None
+    await db.patients.update_one(
+        {"_id": ObjectId(patient_id), "clinic_id": clinic_id},
+        {"$set": {
+            "casebook_summary": summary,
+            "casebook_summary_updated_at": datetime.now(timezone.utc),
+        }}
+    )
+    return summary
+
+
 async def get_prescription(clinic_id: str, prescription_id: str) -> dict:
     db = get_db()
     rx = await db.prescriptions.find_one({"_id": prescription_id, "clinic_id": clinic_id, "is_deleted": {"$ne": True}})
@@ -406,6 +443,8 @@ async def finalize_prescription(clinic_id: str, doctor_id: str, prescription_id:
             )
 
     rx = await db.prescriptions.find_one({"_id": prescription_id})
+    if rx and rx.get("patient_id"):
+        await regenerate_casebook_summary(clinic_id, rx["patient_id"])
     return serialize_doc(rx)
 
 

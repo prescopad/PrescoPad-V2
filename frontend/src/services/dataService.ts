@@ -22,6 +22,8 @@ function mapPatient(row: Record<string, unknown>): Patient {
     allergies: (row.allergies as string) ?? '',
     createdAt: (row.created_at as string) ?? '',
     updatedAt: (row.updated_at as string) ?? '',
+    casebookSummary: (row.casebook_summary as string) ?? null,
+    casebookSummaryUpdatedAt: (row.casebook_summary_updated_at as string) ?? null,
   };
 }
 
